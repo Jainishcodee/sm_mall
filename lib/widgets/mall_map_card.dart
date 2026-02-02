@@ -1,0 +1,124 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as gm;
+
+import '../constants/app_constants.dart';
+
+class MallMapCard extends StatelessWidget {
+  const MallMapCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    if (kIsWeb || !AppConstants.enableMaps) {
+      return _MapPlaceholder(
+        title: AppConstants.mallName,
+        subtitle: 'Map preview disabled (API key missing).',
+      );
+    }
+
+    final mallPosition = gm.LatLng(
+      AppConstants.mallCenter.latitude,
+      AppConstants.mallCenter.longitude,
+    );
+
+    return Container(
+      height: 170,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: gm.GoogleMap(
+          initialCameraPosition: gm.CameraPosition(
+            target: mallPosition,
+            zoom: 14,
+          ),
+          markers: {
+            gm.Marker(
+              markerId: const gm.MarkerId('mall'),
+              position: mallPosition,
+              infoWindow: const gm.InfoWindow(title: AppConstants.mallName),
+            ),
+          },
+          zoomControlsEnabled: false,
+          myLocationButtonEnabled: false,
+          mapToolbarEnabled: false,
+          liteModeEnabled: true,
+          onMapCreated: (_) {},
+        ),
+      ),
+    );
+  }
+}
+
+class _MapPlaceholder extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _MapPlaceholder({
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 170,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: const LinearGradient(
+                colors: [Color(0xFFE8EEFF), Color(0xFFC7D6FF)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: const Icon(Icons.map, color: Color(0xFF2E5BFF)),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
