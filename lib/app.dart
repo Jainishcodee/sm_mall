@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'constants/app_constants.dart';
-import 'screens/login_screen.dart';
+import 'screens/auth_landing_screen.dart';
 import 'theme/app_theme.dart';
 
 class MallDashApp extends StatelessWidget {
@@ -13,7 +13,7 @@ class MallDashApp extends StatelessWidget {
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme(),
-      home: const LoginScreen(),
+      home: const AuthLandingScreen(),
     );
   }
 }

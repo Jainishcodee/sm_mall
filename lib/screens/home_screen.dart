@@ -12,6 +12,7 @@ import '../widgets/product_card.dart';
 import '../widgets/view_cart_bar.dart';
 import 'categories_screen.dart';
 import 'cart_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -169,6 +170,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           } else if (index == 2) {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const CartScreen()),
+            );
+          } else if (index == 4) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
             );
           }
         },

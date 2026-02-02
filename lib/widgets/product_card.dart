@@ -37,7 +37,7 @@ class ProductCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            height: 86,
+            height: 74,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
               gradient: const LinearGradient(
@@ -50,7 +50,7 @@ class ProductCard extends ConsumerWidget {
               child: Icon(Icons.shopping_bag, color: AppColors.primary),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Text(
             product.name,
             style: Theme.of(context)
@@ -60,7 +60,7 @@ class ProductCard extends ConsumerWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             product.unit,
             style: Theme.of(context)
@@ -68,7 +68,7 @@ class ProductCard extends ConsumerWidget {
                 .bodySmall
                 ?.copyWith(color: AppColors.slate500),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             formatRupees(product.price),
             style: Theme.of(context)
@@ -76,7 +76,7 @@ class ProductCard extends ConsumerWidget {
                 .bodyMedium
                 ?.copyWith(fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Align(
             alignment: Alignment.centerLeft,
             child: AnimatedSwitcher(
@@ -120,7 +120,7 @@ class _AddButton extends StatelessWidget {
         foregroundColor: AppColors.primary,
         side: const BorderSide(color: AppColors.primary),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       ),
       child: const Text('Add'),
     );
