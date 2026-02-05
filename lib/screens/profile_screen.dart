@@ -9,7 +9,7 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0F12),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -22,12 +22,12 @@ class ProfileScreen extends StatelessWidget {
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1B1E23),
+                      color: AppColors.primary.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: const Icon(
                       Icons.person_outline,
-                      color: Colors.white,
+                      color: AppColors.primary,
                       size: 28,
                     ),
                   ),
@@ -38,7 +38,7 @@ class ProfileScreen extends StatelessWidget {
                       Text(
                         'John Doe',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: AppColors.slate900,
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                         ),
@@ -47,7 +47,7 @@ class ProfileScreen extends StatelessWidget {
                       Text(
                         '+91 94083 62739',
                         style: TextStyle(
-                          color: Color(0xFF9CA3AF),
+                          color: AppColors.slate500,
                           fontSize: 13,
                         ),
                       ),
@@ -55,7 +55,7 @@ class ProfileScreen extends StatelessWidget {
                       Text(
                         'john.doe@email.com',
                         style: TextStyle(
-                          color: Color(0xFF9CA3AF),
+                          color: AppColors.slate500,
                           fontSize: 13,
                         ),
                       ),
@@ -68,28 +68,28 @@ class ProfileScreen extends StatelessWidget {
                 icon: Icons.receipt_long,
                 title: 'My Orders',
                 subtitle: 'View order history',
-                color: const Color(0xFF1F6BFF),
+                color: AppColors.primary,
               ),
               const SizedBox(height: 12),
               _ProfileTile(
                 icon: Icons.location_on,
                 title: 'Saved Addresses',
                 subtitle: 'Manage delivery locations',
-                color: const Color(0xFF16A34A),
+                color: AppColors.success,
               ),
               const SizedBox(height: 12),
               _ProfileTile(
                 icon: Icons.favorite,
                 title: 'Favorites',
                 subtitle: 'Your liked products',
-                color: const Color(0xFFEF4444),
+                color: AppColors.primary,
               ),
               const SizedBox(height: 12),
               _ProfileTile(
                 icon: Icons.settings,
                 title: 'Settings',
                 subtitle: 'App preferences',
-                color: const Color(0xFF6B7280),
+                color: AppColors.slate500,
               ),
               const SizedBox(height: 12),
               _ProfileTile(
@@ -102,7 +102,7 @@ class ProfileScreen extends StatelessWidget {
               Text(
                 AppConstants.appName,
                 style: const TextStyle(
-                  color: Color(0xFF6B7280),
+                  color: AppColors.slate500,
                   fontSize: 12,
                 ),
               ),
@@ -132,8 +132,9 @@ class _ProfileTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF111418),
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.slate200),
       ),
       child: Row(
         children: [
@@ -141,7 +142,7 @@ class _ProfileTile extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.18),
+              color: color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -154,7 +155,7 @@ class _ProfileTile extends StatelessWidget {
                 Text(
                   title,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.slate900,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -163,14 +164,14 @@ class _ProfileTile extends StatelessWidget {
                 Text(
                   subtitle,
                   style: const TextStyle(
-                    color: Color(0xFF9CA3AF),
+                    color: AppColors.slate500,
                     fontSize: 12,
                   ),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right, color: Color(0xFF6B7280)),
+          const Icon(Icons.chevron_right, color: AppColors.slate500),
         ],
       ),
     );

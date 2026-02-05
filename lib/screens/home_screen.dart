@@ -35,6 +35,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final locationState = ref.watch(locationProvider);
     ref.listen<LocationState>(locationProvider, (previous, next) {
       if (!sheetShown && next.isOutOfRange) {
         sheetShown = true;
@@ -43,6 +44,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
 
     final bottomInset = kBottomNavigationBarHeight + 120;
+    final showLocationCard =
+        locationState.status == LocationStatus.permissionDenied ||
+            locationState.status == LocationStatus.serviceDisabled;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -84,6 +88,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: const AppSearchBar(),
               ),
             ),
+            if (showLocationCard)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: _LocationEnableCard(
+                    onEnable: () =>
+                        ref.read(locationProvider.notifier).checkLocation(),
+                  ),
+                ),
+              ),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -338,6 +352,82 @@ class _PromoBanner extends StatelessWidget {
               child: Icon(Icons.local_grocery_store,
                   color: AppColors.primary, size: 36),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LocationEnableCard extends StatelessWidget {
+  final VoidCallback onEnable;
+
+  const _LocationEnableCard({
+    required this.onEnable,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.slate200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.location_off, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Device location not enabled',
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelLarge
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Enable your device location for a better delivery experience',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: AppColors.slate500),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton(
+            onPressed: onEnable,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            child: const Text('Enable'),
           ),
         ],
       ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gm;
 
 import '../constants/app_constants.dart';
+import '../theme/app_colors.dart';
 
 class MallMapCard extends StatelessWidget {
   const MallMapCard({super.key});
@@ -91,13 +92,16 @@ class _MapPlaceholder extends StatelessWidget {
             height: 72,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              gradient: const LinearGradient(
-                colors: [Color(0xFFE8EEFF), Color(0xFFC7D6FF)],
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.primary.withOpacity(0.12),
+                  AppColors.primary.withOpacity(0.25),
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
             ),
-            child: const Icon(Icons.map, color: Color(0xFF2E5BFF)),
+            child: const Icon(Icons.map, color: AppColors.primary),
           ),
           const SizedBox(width: 16),
           Expanded(

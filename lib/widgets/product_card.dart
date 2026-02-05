@@ -117,12 +117,12 @@ class _AddButton extends StatelessWidget {
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primary,
-        side: const BorderSide(color: AppColors.primary),
+        foregroundColor: AppColors.success,
+        side: const BorderSide(color: AppColors.success),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       ),
-      child: const Text('Add'),
+      child: const Text('ADD'),
     );
   }
 }

@@ -10,7 +10,7 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.background,
       colorScheme: base.colorScheme.copyWith(
         primary: AppColors.primary,
-        secondary: AppColors.primary,
+        secondary: AppColors.success,
         surface: AppColors.card,
         onSurface: AppColors.slate900,
       ),
@@ -35,7 +35,7 @@ class AppTheme {
           fontWeight: FontWeight.w600,
           color: AppColors.slate900,
         ),
-        iconTheme: const IconThemeData(color: AppColors.slate900),
+        iconTheme: const IconThemeData(color: AppColors.primary),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,

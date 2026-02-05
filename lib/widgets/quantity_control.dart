@@ -19,7 +19,7 @@ class QuantityControl extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.primary,
+        color: AppColors.success,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(

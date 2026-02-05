@@ -9,7 +9,11 @@ class MockData {
     Category(id: 'cat_dairy', name: 'Dairy & Bread', icon: Icons.bakery_dining),
     Category(id: 'cat_snacks', name: 'Snacks', icon: Icons.emoji_food_beverage),
     Category(id: 'cat_bakery', name: 'Bakery', icon: Icons.cake),
-    Category(id: 'cat_breakfast', name: 'Breakfast', icon: Icons.breakfast_dining),
+    Category(
+      id: 'cat_breakfast',
+      name: 'Breakfast',
+      icon: Icons.breakfast_dining,
+    ),
     Category(id: 'cat_tea', name: 'Tea, Coffee', icon: Icons.coffee),
     Category(id: 'cat_drinks', name: 'Cold Drinks', icon: Icons.local_drink),
     Category(id: 'cat_sweets', name: 'Sweet Tooth', icon: Icons.icecream),
@@ -17,7 +21,11 @@ class MockData {
     Category(id: 'cat_oil', name: 'Masala, Oil', icon: Icons.soup_kitchen),
     Category(id: 'cat_sauces', name: 'Sauces', icon: Icons.ramen_dining),
     Category(id: 'cat_meat', name: 'Chicken, Meat', icon: Icons.restaurant),
-    Category(id: 'cat_cleaning', name: 'Cleaning', icon: Icons.cleaning_services),
+    Category(
+      id: 'cat_cleaning',
+      name: 'Cleaning',
+      icon: Icons.cleaning_services,
+    ),
     Category(id: 'cat_home', name: 'Home & Office', icon: Icons.home_work),
     Category(id: 'cat_personal', name: 'Personal Care', icon: Icons.spa),
     Category(id: 'cat_pets', name: 'Pet Care', icon: Icons.pets),
@@ -109,4 +117,6 @@ class MockData {
       price: 85,
     ),
   ];
+
+  static productsForStore(String id) {}
 }
