@@ -10,10 +10,7 @@ import 'quantity_control.dart';
 class ProductCard extends ConsumerWidget {
   final Product product;
 
-  const ProductCard({
-    super.key,
-    required this.product,
-  });
+  const ProductCard({super.key, required this.product});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -40,41 +37,50 @@ class ProductCard extends ConsumerWidget {
             height: 74,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              gradient: const LinearGradient(
-                colors: [Color(0xFFE8EEFF), Color(0xFFCAD8FF)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              gradient: product.imageUrl == null
+                  ? const LinearGradient(
+                      colors: [Color(0xFFE8EEFF), Color(0xFFCAD8FF)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
             ),
-            child: const Center(
-              child: Icon(Icons.shopping_bag, color: AppColors.primary),
-            ),
+            child: product.imageUrl != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Image.network(
+                      product.imageUrl!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                  )
+                : const Center(
+                    child: Icon(Icons.shopping_bag, color: AppColors.primary),
+                  ),
           ),
           const SizedBox(height: 6),
           Text(
             product.name,
-            style: Theme.of(context)
-                .textTheme
-                .labelLarge
-                ?.copyWith(fontWeight: FontWeight.w600),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 2),
           Text(
             product.unit,
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: AppColors.slate500),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.slate500),
           ),
           const SizedBox(height: 6),
           Text(
             formatRupees(product.price),
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(fontWeight: FontWeight.w600),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
           Align(
@@ -107,10 +113,7 @@ class ProductCard extends ConsumerWidget {
 class _AddButton extends StatelessWidget {
   final VoidCallback onPressed;
 
-  const _AddButton({
-    super.key,
-    required this.onPressed,
-  });
+  const _AddButton({super.key, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {

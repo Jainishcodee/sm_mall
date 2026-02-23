@@ -1,7 +1,14 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../constants/app_constants.dart';
 import '../theme/app_colors.dart';
+import '../widgets/primary_button.dart';
+import 'auth_landing_screen.dart';
+import 'cart_screen.dart';
+import 'categories_screen.dart';
+import 'home_screen.dart';
+import 'wishlist_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -99,16 +106,93 @@ class ProfileScreen extends StatelessWidget {
                 color: AppColors.primary,
               ),
               const Spacer(),
+              PrimaryButton(
+                label: 'Log Out',
+                onPressed: () async {
+                  try {
+                    await FirebaseAuth.instance.signOut();
+                    if (!context.mounted) {
+                      return;
+                    }
+                    Navigator.of(
+                      context,
+                      rootNavigator: true,
+                    ).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (_) => const AuthLandingScreen(),
+                      ),
+                      (route) => false,
+                    );
+                  } catch (_) {
+                    if (!context.mounted) {
+                      return;
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Failed to log out.')),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: 14),
               Text(
                 AppConstants.appName,
-                style: const TextStyle(
-                  color: AppColors.slate500,
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: AppColors.slate500, fontSize: 12),
               ),
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        currentIndex: 4,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.slate500,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.grid_view),
+            label: 'Categories',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_bag),
+            label: 'Cart',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite_border),
+            label: 'Favorites',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            label: 'Profile',
+          ),
+        ],
+        onTap: (index) {
+          if (index == 4) {
+            return;
+          }
+          if (index == 0) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+              (route) => false,
+            );
+            return;
+          }
+          if (index == 1) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const CategoriesScreen()),
+            );
+            return;
+          }
+          if (index == 2) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const CartScreen()),
+            );
+            return;
+          }
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const WishlistScreen()),
+          );
+        },
       ),
     );
   }

@@ -6,10 +6,7 @@ import '../theme/app_colors.dart';
 class CategoryGridTile extends StatelessWidget {
   final Category category;
 
-  const CategoryGridTile({
-    super.key,
-    required this.category,
-  });
+  const CategoryGridTile({super.key, required this.category});
 
   @override
   Widget build(BuildContext context) {
@@ -29,19 +26,14 @@ class CategoryGridTile extends StatelessWidget {
               ),
             ],
           ),
-          child: Icon(
-            category.icon,
-            color: AppColors.primary,
-            size: 28,
-          ),
+          child: Icon(category.iconData, color: AppColors.primary, size: 28),
         ),
         const SizedBox(height: 6),
         Text(
           category.name,
-          style: Theme.of(context)
-              .textTheme
-              .labelSmall
-              ?.copyWith(color: AppColors.slate700),
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: AppColors.slate700),
           maxLines: 2,
           textAlign: TextAlign.center,
           overflow: TextOverflow.ellipsis,

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/mock_data.dart';
 import '../models/store.dart';
+import '../services/firestore_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/product_card.dart';
 import '../widgets/view_cart_bar.dart';
@@ -15,12 +15,10 @@ class StoreScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final products = MockData.productsForStore(store.id);
+    final productsAsync = ref.watch(storeProductsStreamProvider(store.id));
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(store.name),
-      ),
+      appBar: AppBar(title: Text(store.name)),
       body: Column(
         children: [
           Padding(
@@ -51,7 +49,10 @@ class StoreScreen extends ConsumerWidget {
                         end: Alignment.bottomRight,
                       ),
                     ),
-                    child: const Icon(Icons.storefront, color: AppColors.primary),
+                    child: const Icon(
+                      Icons.storefront,
+                      color: AppColors.primary,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -60,9 +61,7 @@ class StoreScreen extends ConsumerWidget {
                       children: [
                         Text(
                           store.category,
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelMedium
+                          style: Theme.of(context).textTheme.labelMedium
                               ?.copyWith(color: AppColors.slate500),
                         ),
                         const SizedBox(height: 4),
@@ -73,32 +72,34 @@ class StoreScreen extends ConsumerWidget {
                         const SizedBox(height: 6),
                         Row(
                           children: [
-                            const Icon(Icons.timer,
-                                size: 14, color: AppColors.primary),
+                            const Icon(
+                              Icons.timer,
+                              size: 14,
+                              color: AppColors.primary,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               store.eta,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
+                              style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(color: AppColors.slate700),
                             ),
                             const SizedBox(width: 10),
-                            const Icon(Icons.star,
-                                size: 14, color: AppColors.primary),
+                            const Icon(
+                              Icons.star,
+                              size: 14,
+                              color: AppColors.primary,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               store.rating.toStringAsFixed(1),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
+                              style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(color: AppColors.slate700),
                             ),
                           ],
                         ),
                       ],
                     ),
-                  )
+                  ),
                 ],
               ),
             ),
@@ -106,18 +107,23 @@ class StoreScreen extends ConsumerWidget {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: GridView.builder(
-                padding: const EdgeInsets.only(bottom: 120),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 14,
-                  crossAxisSpacing: 14,
-                  childAspectRatio: 0.72,
+              child: productsAsync.when(
+                data: (products) => GridView.builder(
+                  padding: const EdgeInsets.only(bottom: 120),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: 14,
+                    childAspectRatio: 0.72,
+                  ),
+                  itemCount: products.length,
+                  itemBuilder: (context, index) {
+                    return ProductCard(product: products[index]);
+                  },
                 ),
-                itemCount: products.length,
-                itemBuilder: (context, index) {
-                  return ProductCard(product: products[index]);
-                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, stack) =>
+                    const Center(child: Text('Unable to load products.')),
               ),
             ),
           ),
@@ -125,9 +131,9 @@ class StoreScreen extends ConsumerWidget {
       ),
       bottomNavigationBar: ViewCartBar(
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const CartScreen()),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const CartScreen()));
         },
       ),
     );

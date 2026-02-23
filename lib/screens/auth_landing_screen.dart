@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../constants/app_constants.dart';
 import '../theme/app_colors.dart';
+import '../utils/phone_utils.dart';
 import '../widgets/primary_button.dart';
 import 'otp_screen.dart';
 import 'registration_screen.dart';
@@ -49,8 +51,7 @@ class _AuthLandingScreenState extends State<AuthLandingScreen>
       begin: const Offset(0, 0.6),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: cardController, curve: Curves.easeOut));
-    cardOpacity =
-        CurvedAnimation(parent: cardController, curve: Curves.easeIn);
+    cardOpacity = CurvedAnimation(parent: cardController, curve: Curves.easeIn);
 
     logoController.forward();
     _cardTimer = Timer(const Duration(seconds: 2), () {
@@ -98,9 +99,9 @@ class _AuthLandingScreenState extends State<AuthLandingScreen>
                     Text(
                       'SM Mall delivery app',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
@@ -112,9 +113,7 @@ class _AuthLandingScreenState extends State<AuthLandingScreen>
                 position: cardOffset,
                 child: FadeTransition(
                   opacity: cardOpacity,
-                  child: _AuthCard(
-                    phoneController: phoneController,
-                  ),
+                  child: _AuthCard(phoneController: phoneController),
                 ),
               ),
             ),
@@ -125,10 +124,86 @@ class _AuthLandingScreenState extends State<AuthLandingScreen>
   }
 }
 
-class _AuthCard extends StatelessWidget {
+class _AuthCard extends StatefulWidget {
   final TextEditingController phoneController;
 
   const _AuthCard({required this.phoneController});
+
+  @override
+  State<_AuthCard> createState() => _AuthCardState();
+}
+
+class _AuthCardState extends State<_AuthCard> {
+  bool isSending = false;
+
+  Future<void> _sendOtp() async {
+    if (isSending) {
+      return;
+    }
+    final normalized = normalizePhone(widget.phoneController.text.trim());
+    if (normalized == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid phone number.')),
+      );
+      return;
+    }
+    setState(() => isSending = true);
+    try {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: normalized,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (credential) async {
+          await FirebaseAuth.instance.signInWithCredential(credential);
+          if (!mounted) {
+            return;
+          }
+          setState(() => isSending = false);
+        },
+        verificationFailed: (error) {
+          if (!mounted) {
+            return;
+          }
+          setState(() => isSending = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.message ?? 'Failed to send OTP.')),
+          );
+        },
+        codeSent: (verificationId, _) {
+          if (!mounted) {
+            return;
+          }
+          setState(() => isSending = false);
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.white,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            builder: (_) => OtpScreen(
+              phoneNumber: normalized,
+              verificationId: verificationId,
+              isBottomSheet: true,
+            ),
+          );
+        },
+        codeAutoRetrievalTimeout: (_) {
+          if (!mounted) {
+            return;
+          }
+          setState(() => isSending = false);
+        },
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => isSending = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to send OTP: $error')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -159,7 +234,7 @@ class _AuthCard extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           TextField(
-            controller: phoneController,
+            controller: widget.phoneController,
             keyboardType: TextInputType.phone,
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.phone),
@@ -168,15 +243,8 @@ class _AuthCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           PrimaryButton(
-            label: 'Send OTP',
-            onPressed: () {
-              final phone = phoneController.text.trim();
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => OtpScreen(phoneNumber: phone),
-                ),
-              );
-            },
+            label: isSending ? 'Sending...' : 'Send OTP',
+            onPressed: _sendOtp,
           ),
           const SizedBox(height: 8),
           Row(
@@ -184,10 +252,9 @@ class _AuthCard extends StatelessWidget {
             children: [
               Text(
                 'New to ${AppConstants.appName}?',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: AppColors.slate500),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.slate500),
               ),
               TextButton(
                 onPressed: () {

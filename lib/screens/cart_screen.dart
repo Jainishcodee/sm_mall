@@ -7,6 +7,10 @@ import '../utils/formatters.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/quantity_control.dart';
 import 'billing_screen.dart';
+import 'categories_screen.dart';
+import 'home_screen.dart';
+import 'profile_screen.dart';
+import 'wishlist_screen.dart';
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
@@ -18,19 +22,16 @@ class CartScreen extends ConsumerWidget {
     const deliveryFee = 30.0;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Your Cart'),
-      ),
+      appBar: AppBar(title: const Text('Your Cart')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: items.isEmpty
             ? Center(
                 child: Text(
                   'Your cart is empty. Add items from the mall.',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: AppColors.slate500),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: AppColors.slate500),
                 ),
               )
             : Column(
@@ -124,10 +125,7 @@ class CartScreen extends ConsumerWidget {
                     value: formatRupees(cartState.totalPrice),
                   ),
                   const SizedBox(height: 8),
-                  const _SummaryRow(
-                    label: 'Delivery fee',
-                    value: '₹30',
-                  ),
+                  const _SummaryRow(label: 'Delivery fee', value: '₹30'),
                   const SizedBox(height: 8),
                   _SummaryRow(
                     label: 'Total',
@@ -139,13 +137,67 @@ class CartScreen extends ConsumerWidget {
                     label: 'Proceed to Checkout',
                     onPressed: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const BillingScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const BillingScreen(),
+                        ),
                       );
                     },
                   ),
                   const SizedBox(height: 6),
                 ],
               ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        currentIndex: 2,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.slate500,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.grid_view),
+            label: 'Categories',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_bag),
+            label: 'Cart',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite_border),
+            label: 'Favorites',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            label: 'Profile',
+          ),
+        ],
+        onTap: (index) {
+          if (index == 2) {
+            return;
+          }
+          if (index == 0) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+              (route) => false,
+            );
+            return;
+          }
+          if (index == 1) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const CategoriesScreen()),
+            );
+            return;
+          }
+          if (index == 3) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const WishlistScreen()),
+            );
+            return;
+          }
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const ProfileScreen()),
+          );
+        },
       ),
     );
   }
@@ -165,9 +217,9 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.bodyMedium?.copyWith(
-          fontWeight: isEmphasized ? FontWeight.w600 : FontWeight.w400,
-          color: isEmphasized ? AppColors.slate900 : AppColors.slate700,
-        );
+      fontWeight: isEmphasized ? FontWeight.w600 : FontWeight.w400,
+      color: isEmphasized ? AppColors.slate900 : AppColors.slate700,
+    );
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [

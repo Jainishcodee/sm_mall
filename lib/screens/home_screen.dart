@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../constants/app_constants.dart';
-import '../data/mock_data.dart';
 import '../providers/location_provider.dart';
+import '../services/firestore_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/address_header.dart';
 import '../widgets/app_search_bar.dart';
@@ -13,6 +13,7 @@ import '../widgets/view_cart_bar.dart';
 import 'categories_screen.dart';
 import 'cart_screen.dart';
 import 'profile_screen.dart';
+import 'wishlist_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -23,6 +24,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool sheetShown = false;
+  bool isServiceSheetOpen = false;
   int navIndex = 0;
 
   @override
@@ -36,17 +38,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final locationState = ref.watch(locationProvider);
-    ref.listen<LocationState>(locationProvider, (previous, next) {
-      if (!sheetShown && next.isOutOfRange) {
-        sheetShown = true;
-        _showServiceUnavailable(context, next.distanceKm);
-      }
-    });
+    final categoriesAsync = ref.watch(categoriesStreamProvider);
+    final productsAsync = ref.watch(activeProductsStreamProvider);
+    final highlightCategory = categoriesAsync.maybeWhen(
+      data: (categories) =>
+          categories.isNotEmpty ? categories.first.name : null,
+      orElse: () => null,
+    );
+
+    if (!sheetShown && !isServiceSheetOpen && locationState.isOutOfRange) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        final isCurrentRoute = ModalRoute.of(context)?.isCurrent ?? false;
+        if (!sheetShown && !isServiceSheetOpen && isCurrentRoute) {
+          sheetShown = true;
+          _showServiceUnavailable(context, locationState.distanceKm);
+        }
+      });
+    }
 
     final bottomInset = kBottomNavigationBarHeight + 120;
     final showLocationCard =
         locationState.status == LocationStatus.permissionDenied ||
-            locationState.status == LocationStatus.serviceDisabled;
+        locationState.status == LocationStatus.serviceDisabled;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -76,7 +92,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         color: AppColors.background,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.search, color: AppColors.slate700),
+                      child: const Icon(
+                        Icons.search,
+                        color: AppColors.slate700,
+                      ),
                     ),
                   ],
                 ),
@@ -101,7 +120,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: _PromoBanner(),
+                child: _PromoBanner(highlightCategory: highlightCategory),
               ),
             ),
             SliverToBoxAdapter(
@@ -113,20 +132,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: SliverGrid(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    return CategoryGridTile(category: MockData.categories[index]);
-                  },
-                  childCount: MockData.categories.length,
+            categoriesAsync.when(
+              data: (categories) => SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverGrid(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    return CategoryGridTile(category: categories[index]);
+                  }, childCount: categories.length),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 0.78,
+                  ),
                 ),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  mainAxisSpacing: 14,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 0.78,
+              ),
+              loading: () => const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ),
+              error: (error, stack) => const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: Text('Unable to load categories.')),
                 ),
               ),
             ),
@@ -139,20 +169,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
             ),
-            SliverPadding(
-              padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset),
-              sliver: SliverGrid(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    return ProductCard(product: MockData.products[index]);
-                  },
-                  childCount: MockData.products.length,
+            productsAsync.when(
+              data: (products) => SliverPadding(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset),
+                sliver: SliverGrid(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    return ProductCard(product: products[index]);
+                  }, childCount: products.length),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 0.62,
+                  ),
                 ),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 0.62,
+              ),
+              loading: () => const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ),
+              error: (error, stack) => const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: Text('Unable to load products.')),
                 ),
               ),
             ),
@@ -167,28 +208,65 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.grid_view), label: 'Categories'),
+            icon: Icon(Icons.grid_view),
+            label: 'Categories',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.shopping_bag), label: 'Cart'),
+            icon: Icon(Icons.shopping_bag),
+            label: 'Cart',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.favorite_border), label: 'Favorites'),
+            icon: Icon(Icons.favorite_border),
+            label: 'Favorites',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline), label: 'Profile'),
+            icon: Icon(Icons.person_outline),
+            label: 'Profile',
+          ),
         ],
         onTap: (index) {
+          if (index == 0) {
+            setState(() => navIndex = 0);
+            return;
+          }
+          if (index == 3) {
+            setState(() => navIndex = index);
+            Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const WishlistScreen()))
+                .then((_) {
+                  if (mounted) {
+                    setState(() => navIndex = 0);
+                  }
+                });
+            return;
+          }
           setState(() => navIndex = index);
           if (index == 1) {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const CategoriesScreen()),
-            );
+            Navigator.of(context)
+                .push(
+                  MaterialPageRoute(builder: (_) => const CategoriesScreen()),
+                )
+                .then((_) {
+                  if (mounted) {
+                    setState(() => navIndex = 0);
+                  }
+                });
           } else if (index == 2) {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const CartScreen()),
-            );
+            Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const CartScreen()))
+                .then((_) {
+                  if (mounted) {
+                    setState(() => navIndex = 0);
+                  }
+                });
           } else if (index == 4) {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ProfileScreen()),
-            );
+            Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const ProfileScreen()))
+                .then((_) {
+                  if (mounted) {
+                    setState(() => navIndex = 0);
+                  }
+                });
           }
         },
       ),
@@ -196,17 +274,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         padding: const EdgeInsets.only(bottom: kBottomNavigationBarHeight),
         child: ViewCartBar(
           onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const CartScreen()),
-            );
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const CartScreen()));
           },
         ),
       ),
     );
   }
 
-  void _showServiceUnavailable(BuildContext context, double? distanceKm) {
-    showModalBottomSheet(
+  Future<void> _showServiceUnavailable(
+    BuildContext context,
+    double? distanceKm,
+  ) async {
+    if (!mounted || isServiceSheetOpen) {
+      return;
+    }
+    isServiceSheetOpen = true;
+    await showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -234,19 +319,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(height: 8),
               Text(
                 'MallDash currently delivers within ${AppConstants.serviceRadiusKm.toStringAsFixed(0)} km of ${AppConstants.mallName}.',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: AppColors.slate500),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppColors.slate500),
               ),
               if (distanceKm != null) ...[
                 const SizedBox(height: 10),
                 Text(
                   'You are ~${distanceKm.toStringAsFixed(1)} km away.',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: AppColors.slate700),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: AppColors.slate700),
                 ),
               ],
               const SizedBox(height: 16),
@@ -255,6 +338,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         );
       },
     );
+    if (mounted) {
+      isServiceSheetOpen = false;
+    }
   }
 }
 
@@ -262,26 +348,19 @@ class _SectionTitle extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _SectionTitle({
-    required this.title,
-    required this.subtitle,
-  });
+  const _SectionTitle({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text(title, style: Theme.of(context).textTheme.titleMedium),
         Text(
           subtitle,
-          style: Theme.of(context)
-              .textTheme
-              .labelSmall
-              ?.copyWith(color: AppColors.slate500),
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: AppColors.slate500),
         ),
       ],
     );
@@ -289,6 +368,10 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _PromoBanner extends StatelessWidget {
+  final String? highlightCategory;
+
+  const _PromoBanner({this.highlightCategory});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -308,23 +391,25 @@ class _PromoBanner extends StatelessWidget {
                 children: [
                   Text(
                     'Daily essentials, delivered fast',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Fresh picks from ${MockData.categories.first.name}.',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: AppColors.slate500),
+                    highlightCategory == null
+                        ? 'Fresh picks from today\'s favorites.'
+                        : 'Fresh picks from $highlightCategory.',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: AppColors.slate500),
                   ),
                   const SizedBox(height: 12),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary,
                       borderRadius: BorderRadius.circular(14),
@@ -349,8 +434,11 @@ class _PromoBanner extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Center(
-              child: Icon(Icons.local_grocery_store,
-                  color: AppColors.primary, size: 36),
+              child: Icon(
+                Icons.local_grocery_store,
+                color: AppColors.primary,
+                size: 36,
+              ),
             ),
           ),
         ],
@@ -362,9 +450,7 @@ class _PromoBanner extends StatelessWidget {
 class _LocationEnableCard extends StatelessWidget {
   final VoidCallback onEnable;
 
-  const _LocationEnableCard({
-    required this.onEnable,
-  });
+  const _LocationEnableCard({required this.onEnable});
 
   @override
   Widget build(BuildContext context) {
@@ -400,18 +486,16 @@ class _LocationEnableCard extends StatelessWidget {
               children: [
                 Text(
                   'Device location not enabled',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelLarge
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Enable your device location for a better delivery experience',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: AppColors.slate500),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.slate500),
                 ),
               ],
             ),

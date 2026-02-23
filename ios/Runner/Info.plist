@@ -47,5 +47,9 @@
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We use your location to confirm MallDash delivery availability.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Allow access to pick product images.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Allow access to capture product images.</string>
 </dict>
 </plist>

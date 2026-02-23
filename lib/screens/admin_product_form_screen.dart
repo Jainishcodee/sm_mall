@@ -1,26 +1,27 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+
+import '../models/catalog_item.dart';
+import '../services/cloudinary_service.dart';
+import '../services/firestore_service.dart';
 import '../theme/app_colors.dart';
 
-class AdminProductFormScreen extends StatefulWidget {
-  final String? initialName;
-  final String? initialCategory;
-  final String? initialPrice;
-  final String? initialStock;
+class AdminProductFormScreen extends ConsumerStatefulWidget {
+  final CatalogItem? initialItem;
 
-  const AdminProductFormScreen({
-    super.key,
-    this.initialName,
-    this.initialCategory,
-    this.initialPrice,
-    this.initialStock,
-  });
+  const AdminProductFormScreen({super.key, this.initialItem});
 
   @override
-  State<AdminProductFormScreen> createState() => _AdminProductFormScreenState();
+  ConsumerState<AdminProductFormScreen> createState() =>
+      _AdminProductFormScreenState();
 }
 
-class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
+class _AdminProductFormScreenState
+    extends ConsumerState<AdminProductFormScreen> {
   late final TextEditingController nameController;
   late final TextEditingController categoryController;
   late final TextEditingController priceController;
@@ -29,22 +30,24 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
   late final TextEditingController descriptionController;
 
   bool isActive = true;
+  File? selectedImage;
+  bool isUploading = false;
 
   @override
   void initState() {
     super.initState();
-    nameController = TextEditingController(text: widget.initialName ?? '');
-    categoryController =
-        TextEditingController(text: widget.initialCategory ?? '');
+    final initial = widget.initialItem;
+    nameController = TextEditingController(text: initial?.product.name ?? '');
+    categoryController = TextEditingController(text: initial?.category ?? '');
     priceController = TextEditingController(
-      text: widget.initialPrice?.replaceAll('Rs ', '') ?? '',
+      text: initial?.product.price.toStringAsFixed(0) ?? '',
     );
-    stockController = TextEditingController(text: widget.initialStock ?? '');
-    unitController = TextEditingController(text: '500 g');
+    stockController = TextEditingController(text: initial?.stockNote ?? '');
+    unitController = TextEditingController(text: initial?.product.unit ?? '');
     descriptionController = TextEditingController(
-      text: 'Freshly prepared and packed with care.',
+      text: initial?.description ?? '',
     );
-    isActive = widget.initialName != null;
+    isActive = initial?.isActive ?? true;
   }
 
   @override
@@ -58,13 +61,114 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        selectedImage = File(pickedFile.path);
+      });
+    }
+  }
+
+  Future<void> _uploadAndSave() async {
+    final name = nameController.text.trim();
+    final category = categoryController.text.trim();
+    final price = double.tryParse(priceController.text.trim()) ?? -1;
+    final stockNote = stockController.text.trim();
+    final unit = unitController.text.trim();
+    final description = descriptionController.text.trim();
+
+    if (name.isEmpty || price <= 0 || unit.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a name, unit, and valid price.')),
+      );
+      return;
+    }
+
+    final isEditing = widget.initialItem != null;
+    setState(() => isUploading = true);
+
+    try {
+      final firestoreService = ref.read(firestoreServiceProvider);
+      final cloudinaryService = ref.read(cloudinaryServiceProvider);
+      String productId;
+
+      if (isEditing) {
+        productId = widget.initialItem!.product.id;
+      } else {
+        productId = await firestoreService.addProduct(
+          name: name,
+          category: category,
+          price: price,
+          unit: unit,
+          stockNote: stockNote,
+          isActive: isActive,
+          description: description,
+          imageUrl: null,
+        );
+      }
+
+      String? imageUrl;
+      if (selectedImage != null) {
+        imageUrl = await cloudinaryService.uploadProductImage(
+          imageFile: selectedImage!,
+          publicId: productId,
+        );
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      if (isEditing) {
+        await firestoreService.updateProduct(
+          productId: productId,
+          name: name,
+          category: category,
+          price: price,
+          unit: unit,
+          stockNote: stockNote,
+          isActive: isActive,
+          description: description,
+          imageUrl: imageUrl,
+        );
+      } else if (imageUrl != null) {
+        await firestoreService.updateProduct(
+          productId: productId,
+          name: name,
+          category: category,
+          price: price,
+          unit: unit,
+          stockNote: stockNote,
+          isActive: isActive,
+          description: description,
+          imageUrl: imageUrl,
+        );
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() => isUploading = false);
+      Navigator.of(context).pop();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => isUploading = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error saving product: $error')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isEditing = widget.initialName != null;
+    final isEditing = widget.initialItem != null;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isEditing ? 'Edit Product' : 'Add Product'),
-      ),
+      appBar: AppBar(title: Text(isEditing ? 'Edit Product' : 'Add Product')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -142,16 +246,72 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             title: const Text('Product active'),
             subtitle: Text(
               isActive ? 'Visible on customer app' : 'Hidden from customer app',
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall
-                  ?.copyWith(color: AppColors.slate500),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: AppColors.slate500),
             ),
             onChanged: (value) => setState(() => isActive = value),
           ),
+          const SizedBox(height: 16),
+          _SectionHeader(
+            title: 'Product Image',
+            subtitle: 'Upload a photo of your product',
+          ),
+          const SizedBox(height: 12),
+          if (selectedImage != null)
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.slate200),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: kIsWeb
+                    ? Image.network(
+                        selectedImage!.path,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      )
+                    : Image.file(
+                        selectedImage!,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+              ),
+            ),
+          if (selectedImage == null &&
+              widget.initialItem?.product.imageUrl != null)
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.slate200),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  widget.initialItem!.product.imageUrl!,
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: _pickImage,
+            icon: const Icon(Icons.image),
+            label: Text(selectedImage != null ? 'Change Image' : 'Pick Image'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              backgroundColor: AppColors.slate200,
+              foregroundColor: AppColors.slate900,
+            ),
+          ),
           const SizedBox(height: 20),
           ElevatedButton(
-            onPressed: () {},
+            onPressed: isUploading ? null : _uploadAndSave,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.success,
               foregroundColor: Colors.white,
@@ -160,12 +320,64 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            child: Text(isEditing ? 'Save Changes' : 'Add Product'),
+            child: isUploading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Text(isEditing ? 'Save Changes' : 'Add Product'),
           ),
           if (isEditing) ...[
             const SizedBox(height: 12),
             OutlinedButton(
-              onPressed: () {},
+              onPressed: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Product'),
+                    content: const Text(
+                      'Are you sure you want to delete this product?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                        ),
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirmed == true && mounted) {
+                  try {
+                    final firestoreService = ref.read(firestoreServiceProvider);
+                    await firestoreService.deleteProduct(
+                      widget.initialItem!.product.id,
+                    );
+                    if (mounted) {
+                      Navigator.of(context).pop();
+                    }
+                  } catch (error) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error deleting product: $error'),
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
                 side: const BorderSide(color: AppColors.primary),
@@ -188,27 +400,20 @@ class _SectionHeader extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _SectionHeader({
-    required this.title,
-    required this.subtitle,
-  });
+  const _SectionHeader({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleSmall,
-        ),
+        Text(title, style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 4),
         Text(
           subtitle,
-          style: Theme.of(context)
-              .textTheme
-              .labelSmall
-              ?.copyWith(color: AppColors.slate500),
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: AppColors.slate500),
         ),
       ],
     );
@@ -235,10 +440,9 @@ class _LabeledField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: Theme.of(context)
-              .textTheme
-              .labelSmall
-              ?.copyWith(color: AppColors.slate700),
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: AppColors.slate700),
         ),
         const SizedBox(height: 6),
         TextField(

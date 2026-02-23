@@ -1,35 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/mock_data.dart';
+import '../services/firestore_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/category_grid_tile.dart';
 import '../widgets/product_card.dart';
+import 'cart_screen.dart';
+import 'profile_screen.dart';
+import 'wishlist_screen.dart';
 
-class CategoriesScreen extends StatelessWidget {
+class CategoriesScreen extends ConsumerWidget {
   const CategoriesScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categoriesAsync = ref.watch(categoriesStreamProvider);
+    final productsAsync = ref.watch(activeProductsStreamProvider);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Categories'),
-      ),
+      appBar: AppBar(title: const Text('Categories')),
       body: CustomScrollView(
         slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            sliver: SliverGrid(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return CategoryGridTile(category: MockData.categories[index]);
-                },
-                childCount: MockData.categories.length,
+          categoriesAsync.when(
+            data: (categories) => SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              sliver: SliverGrid(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  return CategoryGridTile(category: categories[index]);
+                }, childCount: categories.length),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  mainAxisSpacing: 14,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.78,
+                ),
               ),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.78,
+            ),
+            loading: () => const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ),
+            error: (error, stack) => const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: Text('Unable to load categories.')),
               ),
             ),
           ),
@@ -42,20 +57,31 @@ class CategoriesScreen extends StatelessWidget {
               ),
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-            sliver: SliverGrid(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return ProductCard(product: MockData.products[index]);
-                },
-                childCount: MockData.products.length,
+          productsAsync.when(
+            data: (products) => SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              sliver: SliverGrid(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  return ProductCard(product: products[index]);
+                }, childCount: products.length),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.62,
+                ),
               ),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.62,
+            ),
+            loading: () => const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ),
+            error: (error, stack) => const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: Text('Unable to load products.')),
               ),
             ),
           ),
@@ -69,17 +95,45 @@ class CategoriesScreen extends StatelessWidget {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.grid_view), label: 'Categories'),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: 'Cart'),
+            icon: Icon(Icons.grid_view),
+            label: 'Categories',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.favorite_border), label: 'Favorites'),
+            icon: Icon(Icons.shopping_bag),
+            label: 'Cart',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline), label: 'Profile'),
+            icon: Icon(Icons.favorite_border),
+            label: 'Favorites',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            label: 'Profile',
+          ),
         ],
         onTap: (index) {
           if (index == 0) {
             Navigator.of(context).pop();
+            return;
           }
+          if (index == 1) {
+            return;
+          }
+          if (index == 2) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const CartScreen()),
+            );
+            return;
+          }
+          if (index == 3) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const WishlistScreen()),
+            );
+            return;
+          }
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const ProfileScreen()),
+          );
         },
       ),
     );
