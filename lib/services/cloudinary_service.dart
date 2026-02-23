@@ -1,52 +1,167 @@
 import 'dart:convert';
-import 'dart:io';
 
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 class CloudinaryService {
-  static const String _cloudName = String.fromEnvironment(
+  static const String _cloudNameDefine = String.fromEnvironment(
     'CLOUDINARY_CLOUD_NAME',
   );
-  static const String _uploadPreset = String.fromEnvironment(
+  static const String _uploadPresetDefine = String.fromEnvironment(
     'CLOUDINARY_UPLOAD_PRESET',
   );
-  static const String _folder = String.fromEnvironment('CLOUDINARY_FOLDER');
+  static const String _folderDefine = String.fromEnvironment('CLOUDINARY_FOLDER');
+
+  Map<String, String>? _envCache;
+
+  String _stripQuotes(String value) {
+    final trimmed = value.trim();
+    if (trimmed.length >= 2) {
+      final first = trimmed[0];
+      final last = trimmed[trimmed.length - 1];
+      final isQuoted =
+          (first == '"' && last == '"') || (first == "'" && last == "'");
+      if (isQuoted) {
+        return trimmed.substring(1, trimmed.length - 1).trim();
+      }
+    }
+    return trimmed;
+  }
+
+  Map<String, String> _parseDotEnv(String raw) {
+    final values = <String, String>{};
+    for (final line in raw.split('\n')) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty || trimmed.startsWith('#')) {
+        continue;
+      }
+      final equalsIndex = trimmed.indexOf('=');
+      if (equalsIndex <= 0) {
+        continue;
+      }
+      final key = trimmed.substring(0, equalsIndex).trim();
+      final value = trimmed.substring(equalsIndex + 1);
+      if (key.isEmpty) {
+        continue;
+      }
+      values[key] = _stripQuotes(value);
+    }
+    return values;
+  }
+
+  Future<Map<String, String>> _loadEnv() async {
+    if (_envCache != null) {
+      return _envCache!;
+    }
+    try {
+      final raw = await rootBundle.loadString('.env');
+      _envCache = _parseDotEnv(raw);
+    } catch (_) {
+      _envCache = const <String, String>{};
+    }
+    return _envCache!;
+  }
 
   Future<String?> uploadProductImage({
-    required File imageFile,
+    required XFile imageFile,
     String? publicId,
   }) async {
-    if (_cloudName.isEmpty || _uploadPreset.isEmpty) {
-      return null;
+    final env = await _loadEnv();
+    final cloudName = _cloudNameDefine.isNotEmpty
+        ? _cloudNameDefine
+        : (env['CLOUDINARY_CLOUD_NAME'] ?? '');
+    final uploadPreset = _uploadPresetDefine.isNotEmpty
+        ? _uploadPresetDefine
+        : (env['CLOUDINARY_UPLOAD_PRESET'] ?? '');
+    final folder = _folderDefine.isNotEmpty
+        ? _folderDefine
+        : (env['CLOUDINARY_FOLDER'] ?? '');
+
+    if (cloudName.isEmpty || uploadPreset.isEmpty) {
+      throw StateError(
+        'Cloudinary is not configured. Provide --dart-define=CLOUDINARY_CLOUD_NAME=... '
+        'and --dart-define=CLOUDINARY_UPLOAD_PRESET=... in your build/run command, '
+        'or add a .env file to your Flutter assets with these keys.',
+      );
     }
 
     final uri = Uri.parse(
-      'https://api.cloudinary.com/v1_1/$_cloudName/image/upload',
+      'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
     );
-    final request = http.MultipartRequest('POST', uri)
-      ..fields['upload_preset'] = _uploadPreset;
+    final bytes = await imageFile.readAsBytes();
 
-    if (_folder.isNotEmpty) {
-      request.fields['folder'] = _folder;
+    String extractDetails(String body) {
+      try {
+        final decoded = jsonDecode(body);
+        if (decoded is Map<String, dynamic> &&
+            decoded['error'] is Map<String, dynamic>) {
+          final error = decoded['error'] as Map<String, dynamic>;
+          final message = error['message'];
+          if (message is String && message.trim().isNotEmpty) {
+            return message;
+          }
+        }
+      } catch (_) {
+        // Keep raw body
+      }
+      return body;
     }
 
-    if (publicId != null && publicId.isNotEmpty) {
-      request.fields['public_id'] = publicId;
+    Future<(int, String)> sendUpload({String? effectivePublicId}) async {
+      final request = http.MultipartRequest('POST', uri)
+        ..fields['upload_preset'] = uploadPreset;
+
+      if (folder.isNotEmpty) {
+        request.fields['folder'] = folder;
+      }
+
+      if (effectivePublicId != null && effectivePublicId.isNotEmpty) {
+        request.fields['public_id'] = effectivePublicId;
+      }
+
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          bytes,
+          filename: imageFile.name.isNotEmpty ? imageFile.name : 'upload.jpg',
+        ),
+      );
+
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+      return (response.statusCode, body);
     }
 
-    request.files.add(
-      await http.MultipartFile.fromPath('file', imageFile.path),
-    );
+    var (statusCode, body) = await sendUpload(effectivePublicId: publicId);
 
-    final response = await request.send();
-    final body = await response.stream.bytesToString();
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      return null;
+    // Unsigned uploads don't allow overwrite=true. Also, reusing a public_id can
+    // fail if the asset already exists; retry once with a unique public_id.
+    if (statusCode >= 300 &&
+        publicId != null &&
+        publicId.isNotEmpty &&
+        extractDetails(body).toLowerCase().contains('already exists')) {
+      final uniquePublicId = '${publicId}_${DateTime.now().millisecondsSinceEpoch}';
+      (statusCode, body) =
+          await sendUpload(effectivePublicId: uniquePublicId);
+    }
+
+    if (statusCode < 200 || statusCode >= 300) {
+      final details = extractDetails(body);
+      throw Exception(
+        'Cloudinary upload failed (HTTP $statusCode): $details',
+      );
     }
 
     final payload = jsonDecode(body) as Map<String, dynamic>;
-    return payload['secure_url'] as String?;
+    final secureUrl = payload['secure_url'] as String?;
+    if (secureUrl == null || secureUrl.isEmpty) {
+      throw Exception(
+        'Cloudinary upload succeeded but returned no secure_url.',
+      );
+    }
+    return secureUrl;
   }
 }
 

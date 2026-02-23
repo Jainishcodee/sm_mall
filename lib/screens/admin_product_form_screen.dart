@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -30,8 +30,28 @@ class _AdminProductFormScreenState
   late final TextEditingController descriptionController;
 
   bool isActive = true;
-  File? selectedImage;
+  Object? selectedImage;
   bool isUploading = false;
+  String? _draftProductId;
+
+  XFile? _selectedImageAsXFile() {
+    final current = selectedImage;
+    if (current == null) {
+      return null;
+    }
+    if (current is XFile) {
+      return current;
+    }
+    try {
+      final path = (current as dynamic).path;
+      if (path is String && path.isNotEmpty) {
+        return XFile(path);
+      }
+    } catch (_) {
+      // Ignore conversion failures
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -66,7 +86,7 @@ class _AdminProductFormScreenState
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
-        selectedImage = File(pickedFile.path);
+        selectedImage = pickedFile;
       });
     }
   }
@@ -96,8 +116,32 @@ class _AdminProductFormScreenState
 
       if (isEditing) {
         productId = widget.initialItem!.product.id;
+        await firestoreService.updateProduct(
+          productId: productId,
+          name: name,
+          category: category,
+          price: price,
+          unit: unit,
+          stockNote: stockNote,
+          isActive: isActive,
+          description: description,
+          imageUrl: null,
+        );
       } else {
-        productId = await firestoreService.addProduct(
+        productId = _draftProductId ??
+            await firestoreService.addProduct(
+              name: name,
+              category: category,
+              price: price,
+              unit: unit,
+              stockNote: stockNote,
+              isActive: isActive,
+              description: description,
+              imageUrl: null,
+            );
+        _draftProductId ??= productId;
+        await firestoreService.updateProduct(
+          productId: productId,
           name: name,
           category: category,
           price: price,
@@ -109,42 +153,31 @@ class _AdminProductFormScreenState
         );
       }
 
-      String? imageUrl;
-      if (selectedImage != null) {
-        imageUrl = await cloudinaryService.uploadProductImage(
-          imageFile: selectedImage!,
+      final imageFile = _selectedImageAsXFile();
+      if (imageFile != null) {
+        final imageUrl = await cloudinaryService.uploadProductImage(
+          imageFile: imageFile,
           publicId: productId,
+        );
+        if (imageUrl == null || imageUrl.isEmpty) {
+          throw Exception('Image upload failed (no URL returned).');
+        }
+
+        await firestoreService.updateProduct(
+          productId: productId,
+          name: name,
+          category: category,
+          price: price,
+          unit: unit,
+          stockNote: stockNote,
+          isActive: isActive,
+          description: description,
+          imageUrl: imageUrl,
         );
       }
 
       if (!mounted) {
         return;
-      }
-
-      if (isEditing) {
-        await firestoreService.updateProduct(
-          productId: productId,
-          name: name,
-          category: category,
-          price: price,
-          unit: unit,
-          stockNote: stockNote,
-          isActive: isActive,
-          description: description,
-          imageUrl: imageUrl,
-        );
-      } else if (imageUrl != null) {
-        await firestoreService.updateProduct(
-          productId: productId,
-          name: name,
-          category: category,
-          price: price,
-          unit: unit,
-          stockNote: stockNote,
-          isActive: isActive,
-          description: description,
-          imageUrl: imageUrl,
-        );
       }
 
       if (!mounted) {
@@ -266,19 +299,7 @@ class _AdminProductFormScreenState
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: kIsWeb
-                    ? Image.network(
-                        selectedImage!.path,
-                        height: 200,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      )
-                    : Image.file(
-                        selectedImage!,
-                        height: 200,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
+                child: _PickedImagePreview(file: selectedImage!),
               ),
             ),
           if (selectedImage == null &&
@@ -392,6 +413,62 @@ class _AdminProductFormScreenState
           const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+}
+
+class _PickedImagePreview extends StatelessWidget {
+  final Object file;
+
+  const _PickedImagePreview({required this.file});
+
+  XFile? _asXFile() {
+    if (file is XFile) {
+      return file as XFile;
+    }
+    try {
+      final path = (file as dynamic).path;
+      if (path is String && path.isNotEmpty) {
+        return XFile(path);
+      }
+    } catch (_) {
+      // Ignore conversion failures
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final xFile = _asXFile();
+    if (xFile == null) {
+      return const SizedBox(
+        height: 200,
+        child: Center(child: Text('Unsupported image type')),
+      );
+    }
+    return FutureBuilder<Uint8List>(
+      future: xFile.readAsBytes(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const SizedBox(
+            height: 200,
+            child: Center(child: Text('Could not load image')),
+          );
+        }
+        final bytes = snapshot.data;
+        if (bytes == null) {
+          return const SizedBox(
+            height: 200,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        return Image.memory(
+          bytes,
+          height: 200,
+          width: double.infinity,
+          fit: BoxFit.cover,
+        );
+      },
     );
   }
 }

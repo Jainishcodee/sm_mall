@@ -1,23 +1,22 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'pac';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 
 import '../models/order.dart';
 import '../models/payment.dart';
 import '../models/user_profile.dart';
+import 'firestore_service.dart';
 
 extension FirestoreServiceOrdersAndPayments on FirestoreService {
   // Reference getters
   CollectionReference<Map<String, dynamic>> get ordersCollection {
-    return _firestore.collection('orders');
+    return firestore.collection('orders');
   }
 
   CollectionReference<Map<String, dynamic>> get paymentsCollection {
-    return _firestore.collection('payments');
+    return firestore.collection('payments');
   }
 
   CollectionReference<Map<String, dynamic>> get usersCollection {
-    return _firestore.collection('users');
+    return firestore.collection('users');
   }
 
   // ==================== ORDER OPERATIONS ====================
@@ -117,7 +116,7 @@ extension FirestoreServiceOrdersAndPayments on FirestoreService {
   /// Get order statistics (admin)
   Future<Map<String, dynamic>> getOrderStats() async {
     final allOrders = await ordersCollection.get();
-    
+
     double totalRevenue = 0;
     int totalOrders = allOrders.docs.length;
     int deliveredOrders = 0;
@@ -126,7 +125,7 @@ extension FirestoreServiceOrdersAndPayments on FirestoreService {
     for (final doc in allOrders.docs) {
       final data = doc.data();
       totalRevenue += (data['total'] ?? 0).toDouble();
-      
+
       final status = data['status'] ?? '';
       if (status == 'Delivered') {
         deliveredOrders++;
@@ -207,10 +206,7 @@ extension FirestoreServiceOrdersAndPayments on FirestoreService {
   }
 
   /// Update payment status
-  Future<void> updatePaymentStatus(
-    String paymentId,
-    String newStatus,
-  ) async {
+  Future<void> updatePaymentStatus(String paymentId, String newStatus) async {
     await paymentsCollection.doc(paymentId).update({
       'status': newStatus,
       'updatedAt': FieldValue.serverTimestamp(),
@@ -299,23 +295,21 @@ extension FirestoreServiceOrdersAndPayments on FirestoreService {
 
   /// Get user's addresses
   Future<List<Map<String, dynamic>>> getUserAddresses(String userId) async {
-    final snapshot =
-        await usersCollection.doc(userId).collection('addresses').get();
+    final snapshot = await usersCollection
+        .doc(userId)
+        .collection('addresses')
+        .get();
 
     return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
   }
 
   /// Stream user's addresses
   Stream<List<Map<String, dynamic>>> streamUserAddresses(String userId) {
-    return usersCollection
-        .doc(userId)
-        .collection('addresses')
-        .snapshots()
-        .map((snapshot) {
-          return snapshot.docs
-              .map((doc) => {'id': doc.id, ...doc.data()})
-              .toList();
-        });
+    return usersCollection.doc(userId).collection('addresses').snapshots().map((
+      snapshot,
+    ) {
+      return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+    });
   }
 
   /// Delete address
@@ -327,6 +321,3 @@ extension FirestoreServiceOrdersAndPayments on FirestoreService {
         .delete();
   }
 }
-
-// Import the main FirestoreService to add extensions
-import './firestore_service.dart';

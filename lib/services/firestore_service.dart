@@ -7,6 +7,7 @@ import '../models/product.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore get firestore => _firestore;
 
   String _stringValue(
     Map<String, dynamic> data,
