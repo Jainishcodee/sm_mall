@@ -8,6 +8,7 @@ import '../theme/app_colors.dart';
 import '../widgets/address_header.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/category_grid_tile.dart';
+import '../widgets/loading_skeleton.dart';
 import '../widgets/product_card.dart';
 import '../widgets/view_cart_bar.dart';
 import 'categories_screen.dart';
@@ -26,6 +27,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool sheetShown = false;
   bool isServiceSheetOpen = false;
   int navIndex = 0;
+  String searchQuery = '';
 
   @override
   void initState() {
@@ -69,42 +71,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            SliverToBoxAdapter(
+            const SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.menu, color: AppColors.slate700),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(child: AddressHeader()),
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.search,
-                        color: AppColors.slate700,
-                      ),
-                    ),
-                  ],
-                ),
+                padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: AddressHeader(),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
-                child: const AppSearchBar(),
+                child: AppSearchBar(
+                  onChanged: (value) {
+                    setState(() => searchQuery = value);
+                  },
+                ),
               ),
             ),
             if (showLocationCard)
@@ -133,24 +113,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
             categoriesAsync.when(
-              data: (categories) => SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                sliver: SliverGrid(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    return CategoryGridTile(category: categories[index]);
-                  }, childCount: categories.length),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
-                    mainAxisSpacing: 14,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 0.78,
+              data: (categories) => SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 96,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: categories.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    itemBuilder: (context, index) {
+                      return SizedBox(
+                        width: 68,
+                        child: CategoryGridTile(category: categories[index]),
+                      );
+                    },
                   ),
                 ),
               ),
               loading: () => const SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: CircularProgressIndicator()),
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: CategoryHorizontalSkeleton(itemCount: 6),
                 ),
               ),
               error: (error, stack) => const SliverToBoxAdapter(
@@ -170,24 +153,56 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
             productsAsync.when(
-              data: (products) => SliverPadding(
-                padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset),
-                sliver: SliverGrid(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    return ProductCard(product: products[index]);
-                  }, childCount: products.length),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 0.62,
+              data: (products) {
+                final query = searchQuery.trim().toLowerCase();
+                final filteredProducts = query.isEmpty
+                    ? products
+                    : products.where((product) {
+                        final productName =
+                            (product.name as Object?)?.toString() ?? '';
+                        return productName.toLowerCase().contains(query);
+                      }).toList();
+
+                if (filteredProducts.isEmpty) {
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset),
+                      child: Center(
+                        child: Text(
+                          'No products found for "$searchQuery".',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.slate500),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                return SliverPadding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset),
+                  sliver: SliverGrid(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      return ProductCard(product: filteredProducts[index]);
+                    }, childCount: filteredProducts.length),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          childAspectRatio: 0.62,
+                        ),
                   ),
-                ),
-              ),
+                );
+              },
               loading: () => const SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: CircularProgressIndicator()),
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: ProductGridSkeleton(
+                    itemCount: 6,
+                    crossAxisCount: 3,
+                    childAspectRatio: 0.62,
+                    spacing: 12,
+                  ),
                 ),
               ),
               error: (error, stack) => const SliverToBoxAdapter(
@@ -270,15 +285,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           }
         },
       ),
-      bottomSheet: Padding(
-        padding: const EdgeInsets.only(bottom: kBottomNavigationBarHeight),
-        child: ViewCartBar(
-          onTap: () {
-            Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const CartScreen()));
-          },
-        ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: ViewCartBar(
+        onTap: () {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const CartScreen()));
+        },
       ),
     );
   }

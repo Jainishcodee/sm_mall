@@ -40,12 +40,6 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Stores Collection - Read: Everyone, Write: Admin only
-    match /stores/{storeId} {
-      allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin();
-    }
-
     // Users Collection - Each user can only read/write their own data
     match /users/{userId} {
       allow read: if isUserOwner(userId) || isAdmin();

@@ -14,7 +14,7 @@ class CategoryGridTile extends StatelessWidget {
       children: [
         Container(
           width: double.infinity,
-          height: 72,
+          height: 56,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),

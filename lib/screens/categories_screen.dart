@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/category_grid_tile.dart';
+import '../widgets/loading_skeleton.dart';
 import '../widgets/product_card.dart';
 import 'cart_screen.dart';
 import 'profile_screen.dart';
@@ -37,8 +38,8 @@ class CategoriesScreen extends ConsumerWidget {
             ),
             loading: () => const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: CircularProgressIndicator()),
+                padding: EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: CategoryGridSkeleton(itemCount: 8),
               ),
             ),
             error: (error, stack) => const SliverToBoxAdapter(
@@ -74,8 +75,13 @@ class CategoriesScreen extends ConsumerWidget {
             ),
             loading: () => const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: CircularProgressIndicator()),
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 24),
+                child: ProductGridSkeleton(
+                  itemCount: 6,
+                  crossAxisCount: 3,
+                  childAspectRatio: 0.62,
+                  spacing: 12,
+                ),
               ),
             ),
             error: (error, stack) => const SliverToBoxAdapter(

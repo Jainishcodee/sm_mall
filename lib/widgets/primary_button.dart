@@ -4,13 +4,9 @@ import '../theme/app_colors.dart';
 
 class PrimaryButton extends StatelessWidget {
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
-  const PrimaryButton({
-    super.key,
-    required this.label,
-    required this.onPressed,
-  });
+  const PrimaryButton({super.key, required this.label, this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -26,10 +22,7 @@ class PrimaryButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        child: Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
+        child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
       ),
     );
   }

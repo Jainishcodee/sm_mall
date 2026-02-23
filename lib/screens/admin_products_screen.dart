@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/catalog_item.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/loading_skeleton.dart';
 import 'admin_product_form_screen.dart';
 
 class AdminProductsScreen extends ConsumerWidget {
@@ -157,12 +158,7 @@ class AdminProductsScreen extends ConsumerWidget {
                   ),
                 )
                 .toList(),
-            loading: () => [
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            ],
+            loading: () => [const ProductListSkeleton(itemCount: 4)],
             error: (error, stack) => [
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
@@ -191,6 +187,8 @@ class _ProductTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = data.isActive ? AppColors.success : AppColors.primary;
+    final imageUrl = data.product.imageUrl?.trim();
+    final hasImage = imageUrl != null && imageUrl.isNotEmpty;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
@@ -208,7 +206,20 @@ class _ProductTile extends StatelessWidget {
               color: statusColor.withOpacity(0.12),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(Icons.fastfood, color: statusColor),
+            child: hasImage
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      errorBuilder: (_, __, ___) {
+                        return Icon(Icons.fastfood, color: statusColor);
+                      },
+                    ),
+                  )
+                : Icon(Icons.fastfood, color: statusColor),
           ),
           const SizedBox(width: 12),
           Expanded(

@@ -8,10 +8,7 @@ import '../utils/formatters.dart';
 class ViewCartBar extends ConsumerWidget {
   final VoidCallback onTap;
 
-  const ViewCartBar({
-    super.key,
-    required this.onTap,
-  });
+  const ViewCartBar({super.key, required this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,48 +17,84 @@ class ViewCartBar extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    return SafeArea(
-      minimum: const EdgeInsets.all(16),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.12),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
+    final itemLabel = cartState.totalItems == 1
+        ? '1 item'
+        : '${cartState.totalItems} items';
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.success,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.success.withOpacity(0.35),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Leading cart icon box
+            Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(8),
               ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.shopping_bag, color: Colors.white),
-                  const SizedBox(width: 10),
-                  Text(
-                    '${cartState.totalItems} items',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
+              child: const Icon(
+                Icons.shopping_bag_rounded,
+                color: Colors.white,
+                size: 16,
+              ),
+            ),
+            const SizedBox(width: 10),
+            // Stacked label
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'View cart',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    height: 1.1,
                   ),
-                ],
-              ),
-              Text(
-                'View Cart · ${formatRupees(cartState.totalPrice)}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
                 ),
+                Text(
+                  itemLabel,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.85),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 10,
+                    height: 1.2,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 18),
+            // Price + chevron
+            Text(
+              formatRupees(cartState.totalPrice),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 3),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Colors.white,
+              size: 17,
+            ),
+          ],
         ),
       ),
     );

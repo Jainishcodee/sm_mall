@@ -9,6 +9,7 @@ import '../models/catalog_item.dart';
 import '../services/cloudinary_service.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/loading_skeleton.dart';
 
 class AdminProductFormScreen extends ConsumerStatefulWidget {
   final CatalogItem? initialItem;
@@ -128,7 +129,8 @@ class _AdminProductFormScreenState
           imageUrl: null,
         );
       } else {
-        productId = _draftProductId ??
+        productId =
+            _draftProductId ??
             await firestoreService.addProduct(
               name: name,
               category: category,
@@ -342,13 +344,10 @@ class _AdminProductFormScreenState
               ),
             ),
             child: isUploading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
+                ? const SkeletonBox(
+                    height: 16,
+                    width: 110,
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
                   )
                 : Text(isEditing ? 'Save Changes' : 'Add Product'),
           ),
@@ -457,9 +456,13 @@ class _PickedImagePreview extends StatelessWidget {
         }
         final bytes = snapshot.data;
         if (bytes == null) {
-          return const SizedBox(
-            height: 200,
-            child: Center(child: CircularProgressIndicator()),
+          return const Padding(
+            padding: EdgeInsets.all(8),
+            child: SkeletonBox(
+              height: 200,
+              width: double.infinity,
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
           );
         }
         return Image.memory(

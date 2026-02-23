@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../constants/app_constants.dart';
 import '../providers/cart_provider.dart';
+import '../providers/user_prefs_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
 import '../widgets/primary_button.dart';
@@ -15,12 +15,11 @@ class CheckoutScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cartState = ref.watch(cartProvider);
+    final prefs = ref.watch(userPrefsProvider).valueOrNull ?? const UserPrefs();
     const deliveryFee = 30.0;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Checkout'),
-      ),
+      appBar: AppBar(title: const Text('Checkout')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -32,23 +31,25 @@ class CheckoutScreen extends ConsumerWidget {
             const SizedBox(height: 20),
             _InfoCard(
               title: 'Delivery Address',
-              subtitle: AppConstants.defaultAddress,
+              subtitle: prefs.deliveryAddress.isEmpty
+                  ? 'No address set'
+                  : prefs.deliveryAddress,
               trailing: 'Change',
-              onTap: () {},
+              onTap: () => Navigator.of(context).pop(),
             ),
             const SizedBox(height: 12),
             _InfoCard(
               title: 'Delivery Slot',
-              subtitle: 'Arrives in 25-35 mins',
+              subtitle: prefs.deliverySlot,
               trailing: 'Edit',
-              onTap: () {},
+              onTap: () => Navigator.of(context).pop(),
             ),
             const SizedBox(height: 12),
             _InfoCard(
               title: 'Payment',
-              subtitle: 'Visa •••• 2408',
+              subtitle: prefs.paymentMethod,
               trailing: 'Switch',
-              onTap: () {},
+              onTap: () => Navigator.of(context).pop(),
             ),
             const Spacer(),
             _SummaryRow(
@@ -56,10 +57,7 @@ class CheckoutScreen extends ConsumerWidget {
               value: formatRupees(cartState.totalPrice),
             ),
             const SizedBox(height: 8),
-            const _SummaryRow(
-              label: 'Delivery fee',
-              value: '₹30',
-            ),
+            const _SummaryRow(label: 'Delivery fee', value: '₹30'),
             const SizedBox(height: 8),
             _SummaryRow(
               label: 'Total',
@@ -120,16 +118,12 @@ class _InfoCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(color: AppColors.slate500),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelMedium?.copyWith(color: AppColors.slate500),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+                Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
               ],
             ),
           ),
@@ -160,9 +154,9 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.bodyMedium?.copyWith(
-          fontWeight: isEmphasized ? FontWeight.w600 : FontWeight.w400,
-          color: isEmphasized ? AppColors.slate900 : AppColors.slate700,
-        );
+      fontWeight: isEmphasized ? FontWeight.w600 : FontWeight.w400,
+      color: isEmphasized ? AppColors.slate900 : AppColors.slate700,
+    );
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [

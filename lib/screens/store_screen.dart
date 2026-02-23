@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/store.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/loading_skeleton.dart';
 import '../widgets/product_card.dart';
 import '../widgets/view_cart_bar.dart';
 import 'cart_screen.dart';
@@ -121,7 +122,12 @@ class StoreScreen extends ConsumerWidget {
                     return ProductCard(product: products[index]);
                   },
                 ),
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const ProductGridSkeleton(
+                  itemCount: 6,
+                  crossAxisCount: 2,
+                  childAspectRatio: 0.72,
+                  spacing: 14,
+                ),
                 error: (error, stack) =>
                     const Center(child: Text('Unable to load products.')),
               ),

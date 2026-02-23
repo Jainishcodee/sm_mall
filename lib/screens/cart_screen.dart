@@ -64,9 +64,24 @@ class CartScreen extends ConsumerWidget {
                                   borderRadius: BorderRadius.circular(12),
                                   color: AppColors.background,
                                 ),
-                                child: const Icon(
-                                  Icons.shopping_bag,
-                                  color: AppColors.primary,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child:
+                                      item.product.imageUrl != null &&
+                                          item.product.imageUrl!.isNotEmpty
+                                      ? Image.network(
+                                          item.product.imageUrl!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) =>
+                                              const Icon(
+                                                Icons.shopping_bag,
+                                                color: AppColors.primary,
+                                              ),
+                                        )
+                                      : const Icon(
+                                          Icons.shopping_bag,
+                                          color: AppColors.primary,
+                                        ),
                                 ),
                               ),
                               const SizedBox(width: 12),
