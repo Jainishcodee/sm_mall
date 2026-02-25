@@ -24,25 +24,25 @@ class AdminPaymentsScreen extends StatelessWidget {
           final docs = snap.data?.docs ?? [];
 
           final collected = docs
-              .where((d) => d['paymentStatus'] == 'Completed')
+              .where((d) => d.data()['paymentStatus'] == 'Completed')
               .fold<double>(
                 0,
-                (s, d) => s + ((d['total'] ?? 0) as num).toDouble(),
+                (s, d) => s + ((d.data()['total'] ?? 0) as num).toDouble(),
               );
           final pending = docs
-              .where((d) => d['paymentStatus'] != 'Completed')
+              .where((d) => d.data()['paymentStatus'] != 'Completed')
               .fold<double>(
                 0,
-                (s, d) => s + ((d['total'] ?? 0) as num).toDouble(),
+                (s, d) => s + ((d.data()['total'] ?? 0) as num).toDouble(),
               );
           final codCount = docs
               .where(
                 (d) =>
-                    (d['paymentMethod'] ?? '')
+                    (d.data()['paymentMethod'] ?? '')
                         .toString()
                         .toLowerCase()
                         .contains('cash') ||
-                    (d['paymentMethod'] ?? '')
+                    (d.data()['paymentMethod'] ?? '')
                         .toString()
                         .toLowerCase()
                         .contains('cod'),
@@ -54,9 +54,13 @@ class AdminPaymentsScreen extends StatelessWidget {
           final sorted = List.of(docs)
             ..sort((a, b) {
               final aT =
-                  (a['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+                  (a.data()['createdAt'] as Timestamp?)
+                      ?.millisecondsSinceEpoch ??
+                  0;
               final bT =
-                  (b['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+                  (b.data()['createdAt'] as Timestamp?)
+                      ?.millisecondsSinceEpoch ??
+                  0;
               return bT.compareTo(aT);
             });
 

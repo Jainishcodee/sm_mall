@@ -12,12 +12,22 @@ import 'categories_screen.dart';
 import 'help_screen.dart';
 import 'home_screen.dart';
 import 'my_orders_screen.dart';
+import 'profile_edit_screen.dart';
 import 'saved_addresses_screen.dart';
 import 'settings_screen.dart';
 import 'wishlist_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  int _refreshKey = 0;
+
+  void _refresh() => setState(() => _refreshKey++);
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +37,7 @@ class ProfileScreen extends StatelessWidget {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          key: ValueKey(_refreshKey),
           future: uid.isEmpty
               ? null
               : FirebaseFirestore.instance.collection('users').doc(uid).get(),
@@ -35,7 +46,7 @@ class ProfileScreen extends StatelessWidget {
             if (snapshot.hasData && snapshot.data?.data() != null) {
               profile = UserProfile.fromFirestore(uid, snapshot.data!.data()!);
             }
-            return _ProfileBody(profile: profile, uid: uid);
+            return _ProfileBody(profile: profile, uid: uid, onEdited: _refresh);
           },
         ),
       ),
@@ -96,8 +107,13 @@ class ProfileScreen extends StatelessWidget {
 class _ProfileBody extends StatelessWidget {
   final UserProfile? profile;
   final String uid;
+  final VoidCallback onEdited;
 
-  const _ProfileBody({required this.profile, required this.uid});
+  const _ProfileBody({
+    required this.profile,
+    required this.uid,
+    required this.onEdited,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -105,62 +121,132 @@ class _ProfileBody extends StatelessWidget {
     final displayName =
         profile?.displayName ?? (phone.isNotEmpty ? phone : 'Guest');
     final email = profile?.email ?? '';
+    final gender = profile?.gender ?? '';
+    final photoUrl = (profile?.photoUrl ?? '').trim();
+    final hasPhoto = photoUrl.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Avatar + Name ─────────────────────────────────────────
+          // ── Avatar + Name + Edit ───────────────────────────────────
           Row(
             children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Center(
-                  child: Text(
-                    _initials(displayName),
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 20,
+              Stack(
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.12),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppColors.primary.withOpacity(0.3),
+                        width: 2,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: hasPhoto
+                          ? Image.network(
+                              photoUrl,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                              errorBuilder: (_, __, ___) =>
+                                  _initialsWidget(displayName),
+                            )
+                          : _initialsWidget(displayName),
                     ),
                   ),
-                ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: () => _openEdit(context),
+                      child: Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            width: 2,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          color: Colors.white,
+                          size: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(width: 14),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    displayName,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                  if (phone.isNotEmpty) ...[
-                    const SizedBox(height: 2),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      phone,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.slate500,
+                      displayName,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                  ],
-                  if (email.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      email,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.slate500,
+                    if (phone.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        phone,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.slate500,
+                        ),
                       ),
-                    ),
+                    ],
+                    if (email.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        email,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.slate500,
+                        ),
+                      ),
+                    ],
+                    if (gender.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          gender,
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
+              ),
+              IconButton(
+                onPressed: () => _openEdit(context),
+                icon: const Icon(
+                  Icons.edit_outlined,
+                  color: AppColors.slate500,
+                  size: 20,
+                ),
+                tooltip: 'Edit profile',
               ),
             ],
           ),
@@ -257,11 +343,42 @@ class _ProfileBody extends StatelessWidget {
     );
   }
 
-  String _initials(String name) {
+  Widget _initialsWidget(String name) {
     final parts = name.trim().split(' ');
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts[0][0].toUpperCase();
-    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    String init;
+    if (parts.isEmpty || parts.first.isEmpty) {
+      init = '?';
+    } else if (parts.length == 1) {
+      init = parts[0][0].toUpperCase();
+    } else {
+      init = '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return Center(
+      child: Text(
+        init,
+        style: const TextStyle(
+          color: AppColors.primary,
+          fontWeight: FontWeight.w700,
+          fontSize: 26,
+        ),
+      ),
+    );
+  }
+
+  void _openEdit(BuildContext context) async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ProfileEditScreen(
+          uid: uid,
+          initialFirstName: profile?.firstName ?? '',
+          initialLastName: profile?.lastName ?? '',
+          initialEmail: profile?.email ?? '',
+          initialGender: profile?.gender ?? '',
+          initialPhotoUrl: profile?.photoUrl ?? '',
+        ),
+      ),
+    );
+    if (result == true) onEdited();
   }
 }
 

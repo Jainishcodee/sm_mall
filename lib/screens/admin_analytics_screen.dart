@@ -64,7 +64,7 @@ class AdminAnalyticsScreen extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  _KpiCard(title: 'Total Orders', value: '$total', change: '${delivered} done', color: AppColors.primary),
+                  _KpiCard(title: 'Total Orders', value: '$total', change: '$delivered done', color: AppColors.primary),
                   const SizedBox(width: 12),
                   _KpiCard(title: 'Conversion', value: '$convRate%', change: '$delivered delivered', color: AppColors.success),
                 ],

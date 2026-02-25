@@ -4,6 +4,8 @@ class UserProfile {
   final String lastName;
   final String email;
   final String phone;
+  final String photoUrl;
+  final String gender;
   final bool isActive;
   final DateTime createdAt;
   final DateTime? updatedAt;
@@ -14,6 +16,8 @@ class UserProfile {
     this.lastName = '',
     required this.email,
     required this.phone,
+    this.photoUrl = '',
+    this.gender = '',
     this.isActive = true,
     required this.createdAt,
     this.updatedAt,
@@ -39,6 +43,8 @@ class UserProfile {
           (parts.length > 1 ? parts.sublist(1).join(' ') : ''),
       email: (data['email'] as String?) ?? '',
       phone: (data['phone'] as String?) ?? '',
+      photoUrl: (data['photoUrl'] as String?) ?? '',
+      gender: (data['gender'] as String?) ?? '',
       isActive: (data['isActive'] as bool?) ?? true,
       createdAt: (data['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as dynamic)?.toDate(),
@@ -52,6 +58,8 @@ class UserProfile {
       'name': displayName, // keep legacy field
       'email': email,
       'phone': phone,
+      'photoUrl': photoUrl,
+      'gender': gender,
       'isActive': isActive,
       'createdAt': createdAt,
       'updatedAt': updatedAt,

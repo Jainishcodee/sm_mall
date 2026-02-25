@@ -4,7 +4,15 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'admin_order_detail_screen.dart';
 
-const _kStatuses = ['All', 'Pending', 'Accepted', 'Ready', 'On the way', 'Delivered', 'Cancelled'];
+const _kStatuses = [
+  'All',
+  'Pending',
+  'Accepted',
+  'Ready',
+  'On the way',
+  'Delivered',
+  'Cancelled',
+];
 
 class AdminOrdersScreen extends StatefulWidget {
   const AdminOrdersScreen({super.key});
@@ -51,9 +59,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
         ),
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('orders')
-            .snapshots(),
+        stream: FirebaseFirestore.instance.collection('orders').snapshots(),
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -64,21 +70,34 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           var docs = snap.data?.docs ?? [];
           // Filter
           if (_filter != 'All') {
-            docs = docs.where((d) => d['status'] == _filter).toList();
+            docs = docs.where((d) => d.data()['status'] == _filter).toList();
           }
           // Sort by createdAt desc client-side
           docs = List.of(docs)
             ..sort((a, b) {
-              final aT = (a['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
-              final bT = (b['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+              final aT =
+                  (a.data()['createdAt'] as Timestamp?)
+                      ?.millisecondsSinceEpoch ??
+                  0;
+              final bT =
+                  (b.data()['createdAt'] as Timestamp?)
+                      ?.millisecondsSinceEpoch ??
+                  0;
               return bT.compareTo(aT);
             });
 
           // Summary counts
           final all = snap.data?.docs ?? [];
-          final pending = all.where((d) => d['status'] == 'Pending').length;
+          final pending = all
+              .where((d) => d.data()['status'] == 'Pending')
+              .length;
           final active = all
-              .where((d) => d['status'] == 'Accepted' || d['status'] == 'Ready' || d['status'] == 'On the way')
+              .where(
+                (d) =>
+                    d.data()['status'] == 'Accepted' ||
+                    d.data()['status'] == 'Ready' ||
+                    d.data()['status'] == 'On the way',
+              )
               .length;
 
           return ListView(
@@ -94,21 +113,25 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                 Padding(
                   padding: const EdgeInsets.only(top: 32),
                   child: Center(
-                      child: Text('No orders found.',
-                          style: theme.textTheme.bodyMedium)),
+                    child: Text(
+                      'No orders found.',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ),
                 )
               else
-                ...docs.map((doc) => _OrderTile(
-                      docId: doc.id,
-                      data: doc.data(),
-                      onView: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              AdminOrderDetailScreen(orderId: doc.id),
-                        ),
+                ...docs.map(
+                  (doc) => _OrderTile(
+                    docId: doc.id,
+                    data: doc.data(),
+                    onView: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AdminOrderDetailScreen(orderId: doc.id),
                       ),
-                    )),
+                    ),
+                  ),
+                ),
             ],
           );
         },
@@ -123,7 +146,11 @@ class _SummaryStrip extends StatelessWidget {
   final int total;
   final int pending;
   final int active;
-  const _SummaryStrip({required this.total, required this.pending, required this.active});
+  const _SummaryStrip({
+    required this.total,
+    required this.pending,
+    required this.active,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -139,40 +166,60 @@ class _SummaryStrip extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _SummaryItem(label: 'Total', value: '$total', color: AppColors.primary),
+          _SummaryItem(
+            label: 'Total',
+            value: '$total',
+            color: AppColors.primary,
+          ),
           _divider(),
-          _SummaryItem(label: 'Pending', value: '$pending', color: AppColors.primary),
+          _SummaryItem(
+            label: 'Pending',
+            value: '$pending',
+            color: AppColors.primary,
+          ),
           _divider(),
-          _SummaryItem(label: 'Active', value: '$active', color: AppColors.success),
+          _SummaryItem(
+            label: 'Active',
+            value: '$active',
+            color: AppColors.success,
+          ),
         ],
       ),
     );
   }
 
-  Widget _divider() => Container(height: 32, width: 1, color: AppColors.slate200);
+  Widget _divider() =>
+      Container(height: 32, width: 1, color: AppColors.slate200);
 }
 
 class _SummaryItem extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
-  const _SummaryItem({required this.label, required this.value, required this.color});
+  const _SummaryItem({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(value,
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.w700, color: color)),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
         const SizedBox(height: 2),
-        Text(label,
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
-                ?.copyWith(color: AppColors.slate500)),
+        Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: AppColors.slate500),
+        ),
       ],
     );
   }
@@ -182,25 +229,41 @@ class _OrderTile extends StatelessWidget {
   final String docId;
   final Map<String, dynamic> data;
   final VoidCallback onView;
-  const _OrderTile({required this.docId, required this.data, required this.onView});
+  const _OrderTile({
+    required this.docId,
+    required this.data,
+    required this.onView,
+  });
 
   Color _statusColor(String s) {
     switch (s) {
-      case 'Delivered': return AppColors.success;
+      case 'Delivered':
+        return AppColors.success;
       case 'Accepted':
       case 'Ready':
-      case 'On the way': return const Color(0xFF3B82F6);
-      case 'Cancelled': return AppColors.slate500;
-      default: return AppColors.primary;
+      case 'On the way':
+        return const Color(0xFF3B82F6);
+      case 'Cancelled':
+        return AppColors.slate500;
+      default:
+        return AppColors.primary;
     }
   }
 
   Future<void> _updateStatus(BuildContext context, String current) async {
-    const all = ['Pending', 'Accepted', 'Ready', 'On the way', 'Delivered', 'Cancelled'];
+    const all = [
+      'Pending',
+      'Accepted',
+      'Ready',
+      'On the way',
+      'Delivered',
+      'Cancelled',
+    ];
     final selected = await showModalBottomSheet<String>(
       context: context,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) {
         final surface = Theme.of(ctx).colorScheme.surface;
         return Container(
@@ -210,36 +273,37 @@ class _OrderTile extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Update Status',
-                  style: Theme.of(ctx).textTheme.titleMedium),
+              Text('Update Status', style: Theme.of(ctx).textTheme.titleMedium),
               const SizedBox(height: 12),
-              ...all.map((s) => ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: _statusColor(s),
-                        shape: BoxShape.circle,
-                      ),
+              ...all.map(
+                (s) => ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: _statusColor(s),
+                      shape: BoxShape.circle,
                     ),
-                    title: Text(s),
-                    trailing: current == s
-                        ? const Icon(Icons.check, color: AppColors.success)
-                        : null,
-                    onTap: () => Navigator.pop(ctx, s),
-                  )),
+                  ),
+                  title: Text(s),
+                  trailing: current == s
+                      ? const Icon(Icons.check, color: AppColors.success)
+                      : null,
+                  onTap: () => Navigator.pop(ctx, s),
+                ),
+              ),
             ],
           ),
         );
       },
     );
     if (selected != null && selected != current) {
-      await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(docId)
-          .update({'status': selected, 'updatedAt': FieldValue.serverTimestamp()});
+      await FirebaseFirestore.instance.collection('orders').doc(docId).update({
+        'status': selected,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     }
   }
 
@@ -281,27 +345,26 @@ class _OrderTile extends StatelessWidget {
                   children: [
                     Text(
                       '#${docId.substring(0, 8).toUpperCase()}',
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelLarge
-                          ?.copyWith(fontWeight: FontWeight.w600),
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '$customer · $items item${items != 1 ? 's' : ''}',
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelSmall
-                          ?.copyWith(color: AppColors.slate500),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.slate500,
+                      ),
                     ),
                   ],
                 ),
               ),
-              Text('₹${total.toStringAsFixed(0)}',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                '₹${total.toStringAsFixed(0)}',
+                style: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -310,17 +373,23 @@ class _OrderTile extends StatelessWidget {
               GestureDetector(
                 onTap: () => _updateStatus(context, status),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: sc.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      Text(status,
-                          style: TextStyle(
-                              color: sc, fontWeight: FontWeight.w600)),
+                      Text(
+                        status,
+                        style: TextStyle(
+                          color: sc,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       const SizedBox(width: 4),
                       Icon(Icons.keyboard_arrow_down, color: sc, size: 16),
                     ],
@@ -328,8 +397,7 @@ class _OrderTile extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              TextButton(
-                  onPressed: onView, child: const Text('Details')),
+              TextButton(onPressed: onView, child: const Text('Details')),
             ],
           ),
         ],
