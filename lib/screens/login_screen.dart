@@ -68,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
           showModalBottomSheet(
             context: context,
             isScrollControlled: true,
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).colorScheme.surface,
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
@@ -107,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const HomeScreen()),
-        (route) => route.isFirst,
+        (route) => false,
       );
     }
   }
@@ -115,7 +115,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),

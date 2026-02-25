@@ -32,7 +32,7 @@ class CategoryChip extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            category.icon,
+            category.iconData,
             size: 18,
             color: isSelected ? Colors.white : AppColors.primary,
           ),

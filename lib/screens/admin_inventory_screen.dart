@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
@@ -7,117 +8,118 @@ class AdminInventoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lowStock = const [
-      _InventoryRow(name: 'Masala Chaas', stock: '5 left', status: 'Low'),
-      _InventoryRow(name: 'Paneer Butter', stock: '2 left', status: 'Critical'),
-      _InventoryRow(name: 'Gulab Jamun', stock: '0 left', status: 'Out'),
-    ];
+    final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Inventory'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Row(
-            children: const [
-              _InventoryMetric(
-                title: 'Items',
-                value: '132',
-                color: AppColors.primary,
+      appBar: AppBar(title: const Text('Inventory')),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance.collection('products').snapshots(),
+        builder: (context, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return Center(child: Text('Error: ${snap.error}'));
+          }
+          final docs = snap.data?.docs ?? [];
+          final total = docs.length;
+          final outOfStock = docs
+              .where((d) => ((d['stockQuantity'] ?? d['stock'] ?? 0) as int) == 0)
+              .toList();
+          final lowStock = docs.where((d) {
+            final q = (d['stockQuantity'] ?? d['stock'] ?? 0) as int;
+            return q > 0 && q < 10;
+          }).toList();
+          final healthyCount = total - outOfStock.length - lowStock.length;
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Row(
+                children: [
+                  _InventoryMetric(title: 'Total Items', value: '$total', color: AppColors.primary),
+                  const SizedBox(width: 12),
+                  _InventoryMetric(title: 'Healthy', value: '$healthyCount', color: AppColors.success),
+                ],
               ),
-              SizedBox(width: 12),
-              _InventoryMetric(
-                title: 'Low stock',
-                value: '14',
-                color: AppColors.primary,
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _InventoryMetric(title: 'Low Stock', value: '${lowStock.length}', color: AppColors.primary),
+                  const SizedBox(width: 12),
+                  _InventoryMetric(title: 'Out of Stock', value: '${outOfStock.length}', color: AppColors.primary),
+                ],
               ),
+              if (outOfStock.isNotEmpty) ...[  
+                const SizedBox(height: 20),
+                Text('Out of Stock', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 12),
+                ...outOfStock.map((d) => _InventoryTile(data: d.data(), docId: d.id, label: 'Out')),
+              ],
+              if (lowStock.isNotEmpty) ...[  
+                const SizedBox(height: 20),
+                Text('Low Stock Alerts', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 12),
+                ...lowStock.map((d) => _InventoryTile(
+                    data: d.data(),
+                    docId: d.id,
+                    label: (d['stockQuantity'] ?? d['stock'] ?? 0) as int <= 3 ? 'Critical' : 'Low')),
+              ],
+              if (outOfStock.isEmpty && lowStock.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 40),
+                  child: Center(
+                      child: Column(
+                    children: [
+                      const Icon(Icons.check_circle_outline,
+                          size: 56, color: AppColors.success),
+                      const SizedBox(height: 12),
+                      Text('All items are well-stocked!',
+                          style: theme.textTheme.bodyMedium),
+                    ],
+                  )),
+                ),
+              const SizedBox(height: 24),
             ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: const [
-              _InventoryMetric(
-                title: 'Out of stock',
-                value: '4',
-                color: AppColors.primary,
-              ),
-              SizedBox(width: 12),
-              _InventoryMetric(
-                title: 'Healthy',
-                value: '114',
-                color: AppColors.success,
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Low Stock Alerts',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 12),
-          ...lowStock.map(
-            (item) => _InventoryTile(data: item),
-          ),
-          const SizedBox(height: 24),
-        ],
+          );
+        },
       ),
     );
   }
-}
-
-class _InventoryRow {
-  final String name;
-  final String stock;
-  final String status;
-
-  const _InventoryRow({
-    required this.name,
-    required this.stock,
-    required this.status,
-  });
 }
 
 class _InventoryMetric extends StatelessWidget {
   final String title;
   final String value;
   final Color color;
-
-  const _InventoryMetric({
-    required this.title,
-    required this.value,
-    required this.color,
-  });
+  const _InventoryMetric({required this.title, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
+    final surface = Theme.of(context).colorScheme.surface;
+    final divColor = Theme.of(context).dividerColor;
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.slate200),
+          border: Border.all(color: divColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall
-                  ?.copyWith(color: AppColors.slate500),
-            ),
+            Text(title,
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(color: AppColors.slate500)),
             const SizedBox(height: 6),
-            Text(
-              value,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
+            Text(value,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -125,13 +127,9 @@ class _InventoryMetric extends StatelessWidget {
                 color: color.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Text(
-                'This week',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
+              child: Text('Live',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: color, fontWeight: FontWeight.w600)),
             ),
           ],
         ),
@@ -141,33 +139,33 @@ class _InventoryMetric extends StatelessWidget {
 }
 
 class _InventoryTile extends StatelessWidget {
-  final _InventoryRow data;
+  final Map<String, dynamic> data;
+  final String docId;
+  final String label;
+  const _InventoryTile({required this.data, required this.docId, required this.label});
 
-  const _InventoryTile({
-    required this.data,
-  });
-
-  Color _statusColor() {
-    switch (data.status) {
-      case 'Critical':
-      case 'Out':
-        return AppColors.primary;
-      case 'Low':
-      default:
-        return AppColors.success;
+  Color _labelColor() {
+    switch (label) {
+      case 'Out': return AppColors.primary;
+      case 'Critical': return AppColors.primary;
+      default: return const Color(0xFFF59E0B);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = _statusColor();
+    final lc = _labelColor();
+    final stock = (data['stockQuantity'] ?? data['stock'] ?? 0) as int;
+    final surface = Theme.of(context).colorScheme.surface;
+    final divColor = Theme.of(context).dividerColor;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.slate200),
+        border: Border.all(color: divColor),
       ),
       child: Row(
         children: [
@@ -175,47 +173,38 @@ class _InventoryTile extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.12),
+              color: lc.withOpacity(0.12),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(Icons.inventory_2_outlined, color: statusColor),
+            child: Icon(Icons.inventory_2_outlined, color: lc),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  data.name,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelLarge
-                      ?.copyWith(fontWeight: FontWeight.w600),
-                ),
+                Text(data['name'] ?? 'Unknown',
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelLarge
+                        ?.copyWith(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
-                Text(
-                  data.stock,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: AppColors.slate500),
-                ),
+                Text(stock == 0 ? 'Out of stock' : '$stock left',
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelSmall
+                        ?.copyWith(color: AppColors.slate500)),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.12),
+              color: lc.withOpacity(0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Text(
-              data.status,
-              style: TextStyle(
-                color: statusColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: Text(label,
+                style: TextStyle(color: lc, fontWeight: FontWeight.w600)),
           ),
         ],
       ),

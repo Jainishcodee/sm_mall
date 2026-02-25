@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,12 +14,19 @@ class OtpScreen extends StatefulWidget {
   final String phoneNumber;
   final String verificationId;
   final bool isBottomSheet;
+  // Registration data — optional (login flow won't have these)
+  final String firstName;
+  final String lastName;
+  final String email;
 
   const OtpScreen({
     super.key,
     required this.phoneNumber,
     required this.verificationId,
     this.isBottomSheet = false,
+    this.firstName = '',
+    this.lastName = '',
+    this.email = '',
   });
 
   @override
@@ -38,6 +46,7 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   void _handleSignedIn(String phoneNumber) {
+    _saveUserProfile();
     final navigator = Navigator.of(context, rootNavigator: true);
     if (widget.isBottomSheet) {
       navigator.pop();
@@ -54,6 +63,27 @@ class _OtpScreenState extends State<OtpScreen> {
         (route) => route.isFirst,
       );
     }
+  }
+
+  /// Upsert user profile to Firestore using merge so existing data is preserved.
+  Future<void> _saveUserProfile() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final data = <String, dynamic>{
+      'phone': widget.phoneNumber,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    if (widget.firstName.isNotEmpty) data['firstName'] = widget.firstName;
+    if (widget.lastName.isNotEmpty) data['lastName'] = widget.lastName;
+    if (widget.email.isNotEmpty) data['email'] = widget.email;
+    // Set legacy 'name' field too for backwards compat
+    final fullName = '${widget.firstName} ${widget.lastName}'.trim();
+    if (fullName.isNotEmpty) data['name'] = fullName;
+    // Only set createdAt on first write
+    await FirebaseFirestore.instance.collection('users').doc(uid).set({
+      ...data,
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   void _handleBypass(String code) {
