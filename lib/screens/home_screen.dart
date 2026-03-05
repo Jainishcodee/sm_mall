@@ -178,20 +178,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   );
                 }
 
-                return SliverPadding(
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset),
-                  sliver: SliverGrid(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      return ProductCard(product: filteredProducts[index]);
-                    }, childCount: filteredProducts.length),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
+                return SliverLayoutBuilder(
+                  builder: (context, constraints) {
+                    final width = constraints.crossAxisExtent;
+                    final crossAxisCount = width >= 900
+                        ? 5
+                        : width >= 700
+                        ? 4
+                        : width >= 500
+                        ? 3
+                        : 2;
+                    final childAspectRatio = width < 360 ? 0.56 : 0.62;
+
+                    return SliverPadding(
+                      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset),
+                      sliver: SliverGrid(
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          return ProductCard(product: filteredProducts[index]);
+                        }, childCount: filteredProducts.length),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
                           mainAxisSpacing: 12,
                           crossAxisSpacing: 12,
-                          childAspectRatio: 0.62,
+                          childAspectRatio: childAspectRatio,
                         ),
-                  ),
+                      ),
+                    );
+                  },
                 );
               },
               loading: () => const SliverToBoxAdapter(

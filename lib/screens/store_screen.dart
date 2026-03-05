@@ -109,17 +109,31 @@ class StoreScreen extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: productsAsync.when(
-                data: (products) => GridView.builder(
-                  padding: const EdgeInsets.only(bottom: 120),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 14,
-                    crossAxisSpacing: 14,
-                    childAspectRatio: 0.72,
-                  ),
-                  itemCount: products.length,
-                  itemBuilder: (context, index) {
-                    return ProductCard(product: products[index]);
+                data: (products) => LayoutBuilder(
+                  builder: (context, constraints) {
+                    final width = constraints.maxWidth;
+                    final crossAxisCount = width >= 900
+                        ? 4
+                        : width >= 650
+                        ? 3
+                        : width >= 360
+                        ? 2
+                        : 1;
+                    final childAspectRatio = width < 360 ? 0.56 : 0.72;
+
+                    return GridView.builder(
+                      padding: const EdgeInsets.only(bottom: 120),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        mainAxisSpacing: 14,
+                        crossAxisSpacing: 14,
+                        childAspectRatio: childAspectRatio,
+                      ),
+                      itemCount: products.length,
+                      itemBuilder: (context, index) {
+                        return ProductCard(product: products[index]);
+                      },
+                    );
                   },
                 ),
                 loading: () => const ProductGridSkeleton(

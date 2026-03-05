@@ -59,19 +59,33 @@ class CategoriesScreen extends ConsumerWidget {
             ),
           ),
           productsAsync.when(
-            data: (products) => SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              sliver: SliverGrid(
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  return ProductCard(product: products[index]);
-                }, childCount: products.length),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 0.62,
-                ),
-              ),
+            data: (products) => SliverLayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.crossAxisExtent;
+                final crossAxisCount = width >= 900
+                    ? 5
+                    : width >= 700
+                    ? 4
+                    : width >= 500
+                    ? 3
+                    : 2;
+                final childAspectRatio = width < 360 ? 0.56 : 0.62;
+
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  sliver: SliverGrid(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      return ProductCard(product: products[index]);
+                    }, childCount: products.length),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      childAspectRatio: childAspectRatio,
+                    ),
+                  ),
+                );
+              },
             ),
             loading: () => const SliverToBoxAdapter(
               child: Padding(

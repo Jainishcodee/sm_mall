@@ -74,6 +74,8 @@ class ProductCard extends ConsumerWidget {
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: AppColors.slate500),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 6),
           Text(
@@ -83,26 +85,39 @@ class ProductCard extends ConsumerWidget {
             ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: quantity == 0
-                  ? _AddButton(
-                      key: const ValueKey('add'),
-                      onPressed: () =>
-                          ref.read(cartProvider.notifier).addItem(product),
-                    )
-                  : QuantityControl(
-                      key: const ValueKey('qty'),
-                      quantity: quantity,
-                      onAdd: () =>
-                          ref.read(cartProvider.notifier).addItem(product),
-                      onRemove: () => ref
-                          .read(cartProvider.notifier)
-                          .decrementItem(product),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return Align(
+                alignment: Alignment.centerLeft,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: quantity == 0
+                          ? _AddButton(
+                              key: const ValueKey('add'),
+                              onPressed: () => ref
+                                  .read(cartProvider.notifier)
+                                  .addItem(product),
+                            )
+                          : QuantityControl(
+                              key: const ValueKey('qty'),
+                              quantity: quantity,
+                              onAdd: () => ref
+                                  .read(cartProvider.notifier)
+                                  .addItem(product),
+                              onRemove: () => ref
+                                  .read(cartProvider.notifier)
+                                  .decrementItem(product),
+                            ),
                     ),
-            ),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
