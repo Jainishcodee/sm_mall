@@ -1,23 +1,39 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart' as gm;
+import 'package:mappls_gl/mappls_gl.dart';
 
 import '../constants/app_constants.dart';
 import '../theme/app_colors.dart';
 
-class MallMapCard extends StatelessWidget {
+class MallMapCard extends StatefulWidget {
   const MallMapCard({super.key});
+
+  @override
+  State<MallMapCard> createState() => _MallMapCardState();
+}
+
+class _MallMapCardState extends State<MallMapCard> {
+  MapplsMapController? _controller;
+
+  void _onMapCreated(MapplsMapController controller) {
+    _controller = controller;
+    final mallPosition = LatLng(
+      AppConstants.mallCenter.latitude,
+      AppConstants.mallCenter.longitude,
+    );
+    controller.addSymbol(SymbolOptions(geometry: mallPosition));
+  }
 
   @override
   Widget build(BuildContext context) {
     if (kIsWeb || !AppConstants.enableMaps) {
       return _MapPlaceholder(
         title: AppConstants.mallName,
-        subtitle: 'Map preview disabled (API key missing).',
+        subtitle: 'Map preview not available on this platform.',
       );
     }
 
-    final mallPosition = gm.LatLng(
+    final mallPosition = LatLng(
       AppConstants.mallCenter.latitude,
       AppConstants.mallCenter.longitude,
     );
@@ -37,23 +53,11 @@ class MallMapCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
-        child: gm.GoogleMap(
-          initialCameraPosition: gm.CameraPosition(
-            target: mallPosition,
-            zoom: 14,
-          ),
-          markers: {
-            gm.Marker(
-              markerId: const gm.MarkerId('mall'),
-              position: mallPosition,
-              infoWindow: const gm.InfoWindow(title: AppConstants.mallName),
-            ),
-          },
+        child: MapplsMap(
+          initialCameraPosition: CameraPosition(target: mallPosition, zoom: 14),
           zoomControlsEnabled: false,
           myLocationButtonEnabled: false,
-          mapToolbarEnabled: false,
-          liteModeEnabled: true,
-          onMapCreated: (_) {},
+          onMapCreated: _onMapCreated,
         ),
       ),
     );
@@ -64,10 +68,7 @@ class _MapPlaceholder extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _MapPlaceholder({
-    required this.title,
-    required this.subtitle,
-  });
+  const _MapPlaceholder({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -109,15 +110,9 @@ class _MapPlaceholder extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 6),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+                Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
               ],
             ),
           ),
