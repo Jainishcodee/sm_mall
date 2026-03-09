@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../theme/app_colors.dart';
+import 'admin_delivery_zone_screen.dart';
 import 'admin_analytics_screen.dart';
 import 'admin_inventory_screen.dart';
 import 'admin_orders_screen.dart';
@@ -16,19 +17,19 @@ import 'settings_screen.dart';
 
 final _dashOrdersProvider =
     StreamProvider.autoDispose<List<Map<String, dynamic>>>(
-  (ref) => FirebaseFirestore.instance
-      .collection('orders')
-      .snapshots()
-      .map((s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList()),
-);
+      (ref) => FirebaseFirestore.instance
+          .collection('orders')
+          .snapshots()
+          .map((s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList()),
+    );
 
 final _dashProductsProvider =
     StreamProvider.autoDispose<List<Map<String, dynamic>>>(
-  (ref) => FirebaseFirestore.instance
-      .collection('products')
-      .snapshots()
-      .map((s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList()),
-);
+      (ref) => FirebaseFirestore.instance
+          .collection('products')
+          .snapshots()
+          .map((s) => s.docs.map((d) => {'id': d.id, ...d.data()}).toList()),
+    );
 
 // ── Screen ───────────────────────────────────────────────────────────────────
 
@@ -75,14 +76,21 @@ class AdminDashboardScreen extends ConsumerWidget {
     final totalOrders = orders.length;
     final activeOrders = orders.where((o) {
       final s = (o['status'] ?? '') as String;
-      return s == 'Pending' || s == 'Accepted' || s == 'Ready' || s == 'On the way';
+      return s == 'Pending' ||
+          s == 'Accepted' ||
+          s == 'Ready' ||
+          s == 'On the way';
     }).length;
     final revenue = orders.fold<double>(
-        0, (sum, o) => sum + ((o['total'] ?? 0) as num).toDouble());
+      0,
+      (sum, o) => sum + ((o['total'] ?? 0) as num).toDouble(),
+    );
     final collected = orders
         .where((o) => o['paymentStatus'] == 'Completed')
         .fold<double>(
-            0, (sum, o) => sum + ((o['total'] ?? 0) as num).toDouble());
+          0,
+          (sum, o) => sum + ((o['total'] ?? 0) as num).toDouble(),
+        );
     final lowStockCount = products.where((p) {
       final q = (p['stockQuantity'] ?? p['stock'] ?? 0) as int;
       return q > 0 && q < 10;
@@ -116,8 +124,10 @@ class AdminDashboardScreen extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.settings_outlined),
               tooltip: 'Settings',
-              onPressed: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const SettingsScreen())),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              ),
             ),
             IconButton(
               icon: const Icon(Icons.logout),
@@ -138,12 +148,42 @@ class AdminDashboardScreen extends ConsumerWidget {
                     spacing: 12,
                     runSpacing: 12,
                     children: [
-                      _MetricCard(label: 'Total Orders', value: '$totalOrders', trend: 'All time', color: AppColors.primary),
-                      _MetricCard(label: 'Active', value: '$activeOrders', trend: 'Live', color: AppColors.success),
-                      _MetricCard(label: 'Revenue', value: '₹${_fmtAmt(revenue)}', trend: 'Total', color: AppColors.success),
-                      _MetricCard(label: 'Collected', value: '₹${_fmtAmt(collected)}', trend: 'Online', color: AppColors.success),
-                      _MetricCard(label: 'Low Stock', value: '$lowStockCount', trend: 'Items', color: AppColors.primary),
-                      _MetricCard(label: 'Out of Stock', value: '$outOfStockCount', trend: 'Items', color: AppColors.primary),
+                      _MetricCard(
+                        label: 'Total Orders',
+                        value: '$totalOrders',
+                        trend: 'All time',
+                        color: AppColors.primary,
+                      ),
+                      _MetricCard(
+                        label: 'Active',
+                        value: '$activeOrders',
+                        trend: 'Live',
+                        color: AppColors.success,
+                      ),
+                      _MetricCard(
+                        label: 'Revenue',
+                        value: '₹${_fmtAmt(revenue)}',
+                        trend: 'Total',
+                        color: AppColors.success,
+                      ),
+                      _MetricCard(
+                        label: 'Collected',
+                        value: '₹${_fmtAmt(collected)}',
+                        trend: 'Online',
+                        color: AppColors.success,
+                      ),
+                      _MetricCard(
+                        label: 'Low Stock',
+                        value: '$lowStockCount',
+                        trend: 'Items',
+                        color: AppColors.primary,
+                      ),
+                      _MetricCard(
+                        label: 'Out of Stock',
+                        value: '$outOfStockCount',
+                        trend: 'Items',
+                        color: AppColors.primary,
+                      ),
                     ],
                   ),
 
@@ -157,44 +197,96 @@ class AdminDashboardScreen extends ConsumerWidget {
                     runSpacing: 12,
                     children: [
                       _ActionTile(
-                        label: 'Orders', icon: Icons.receipt_long,
+                        label: 'Orders',
+                        icon: Icons.receipt_long,
                         color: AppColors.primary,
                         badge: activeOrders > 0 ? '$activeOrders' : null,
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminOrdersScreen())),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AdminOrdersScreen(),
+                          ),
+                        ),
                       ),
                       _ActionTile(
-                        label: 'Products', icon: Icons.inventory_2_outlined,
+                        label: 'Products',
+                        icon: Icons.inventory_2_outlined,
                         color: AppColors.success,
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminProductsScreen())),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AdminProductsScreen(),
+                          ),
+                        ),
                       ),
                       _ActionTile(
-                        label: 'Inventory', icon: Icons.warehouse_outlined,
+                        label: 'Inventory',
+                        icon: Icons.warehouse_outlined,
                         color: AppColors.primary,
-                        badge: (lowStockCount + outOfStockCount) > 0 ? '${lowStockCount + outOfStockCount}' : null,
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminInventoryScreen())),
+                        badge: (lowStockCount + outOfStockCount) > 0
+                            ? '${lowStockCount + outOfStockCount}'
+                            : null,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AdminInventoryScreen(),
+                          ),
+                        ),
                       ),
                       _ActionTile(
-                        label: 'Payments', icon: Icons.payments_outlined,
+                        label: 'Payments',
+                        icon: Icons.payments_outlined,
                         color: AppColors.success,
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPaymentsScreen())),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AdminPaymentsScreen(),
+                          ),
+                        ),
                       ),
                       _ActionTile(
-                        label: 'Analytics', icon: Icons.show_chart,
+                        label: 'Analytics',
+                        icon: Icons.show_chart,
                         color: AppColors.primary,
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminAnalyticsScreen())),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AdminAnalyticsScreen(),
+                          ),
+                        ),
                       ),
                       _ActionTile(
-                        label: 'Settings', icon: Icons.settings_outlined,
+                        label: 'Delivery Zone',
+                        icon: Icons.place_outlined,
+                        color: AppColors.primary,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AdminDeliveryZoneScreen(),
+                          ),
+                        ),
+                      ),
+                      _ActionTile(
+                        label: 'Settings',
+                        icon: Icons.settings_outlined,
                         color: AppColors.success,
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsScreen(),
+                          ),
+                        ),
                       ),
                     ],
                   ),
 
                   // ── Inventory Health ──────────────────────────────────────
-                  if (products.isNotEmpty) ...[  
+                  if (products.isNotEmpty) ...[
                     const SizedBox(height: 24),
-                    Text('Inventory Health', style: theme.textTheme.titleMedium),
+                    Text(
+                      'Inventory Health',
+                      style: theme.textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 12),
                     _InventoryHealthBars(products: products),
                   ],
@@ -208,10 +300,17 @@ class AdminDashboardScreen extends ConsumerWidget {
                   else if (recentOrders.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Center(child: Text('No orders yet.', style: theme.textTheme.bodyMedium)),
+                      child: Center(
+                        child: Text(
+                          'No orders yet.',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ),
                     )
                   else
-                    ...recentOrders.take(5).map((o) => _RecentOrderTile(order: o)),
+                    ...recentOrders
+                        .take(5)
+                        .map((o) => _RecentOrderTile(order: o)),
 
                   const SizedBox(height: 24),
                 ],
@@ -262,17 +361,19 @@ class _MetricCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall
-                  ?.copyWith(color: AppColors.slate500)),
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: AppColors.slate500),
+          ),
           const SizedBox(height: 6),
-          Text(value,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            value,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -280,11 +381,13 @@ class _MetricCard extends StatelessWidget {
               color: color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Text(trend,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w600,
-                    )),
+            child: Text(
+              trend,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -345,23 +448,27 @@ class _ActionTile extends StatelessWidget {
                         color: AppColors.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: Text(badge!,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold)),
+                      child: Text(
+                        badge!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
               ],
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(label,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelLarge
-                      ?.copyWith(fontWeight: FontWeight.w600),
-                  overflow: TextOverflow.ellipsis),
+              child: Text(
+                label,
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
@@ -443,14 +550,17 @@ class _AnalyticsBar extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(label,
-                    style: Theme.of(context).textTheme.labelMedium),
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
               ),
-              Text(value,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(color: AppColors.slate500)),
+              Text(
+                value,
+                style: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(color: AppColors.slate500),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -495,7 +605,9 @@ class _RecentOrderTile extends StatelessWidget {
     final total = ((order['total'] ?? 0) as num).toDouble();
     final items = (order['items'] as List?)?.length ?? 0;
     final rawId = (order['id'] as String? ?? '');
-    final shortId = rawId.length >= 8 ? rawId.substring(0, 8).toUpperCase() : rawId.toUpperCase();
+    final shortId = rawId.length >= 8
+        ? rawId.substring(0, 8).toUpperCase()
+        : rawId.toUpperCase();
     final surface = Theme.of(context).colorScheme.surface;
     final divColor = Theme.of(context).dividerColor;
 
@@ -523,28 +635,31 @@ class _RecentOrderTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('#$shortId',
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelLarge
-                        ?.copyWith(fontWeight: FontWeight.w600)),
+                Text(
+                  '#$shortId',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 4),
-                Text('$items item${items != 1 ? 's' : ''}',
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelSmall
-                        ?.copyWith(color: AppColors.slate500)),
+                Text(
+                  '$items item${items != 1 ? 's' : ''}',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: AppColors.slate500),
+                ),
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('₹${total.toStringAsFixed(0)}',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                '₹${total.toStringAsFixed(0)}',
+                style: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -552,11 +667,13 @@ class _RecentOrderTile extends StatelessWidget {
                   color: sc.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text(status,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: sc,
-                          fontWeight: FontWeight.w600,
-                        )),
+                child: Text(
+                  status,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: sc,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ),

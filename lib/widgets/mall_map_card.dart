@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:mappls_gl/mappls_gl.dart';
+import 'package:mappls_gl/mappls_gl.dart' as mappls;
 
-import '../constants/app_constants.dart';
+import '../constants/app_constants.dart' as app_constants;
 import '../theme/app_colors.dart';
 
 class MallMapCard extends StatefulWidget {
@@ -13,29 +13,26 @@ class MallMapCard extends StatefulWidget {
 }
 
 class _MallMapCardState extends State<MallMapCard> {
-  MapplsMapController? _controller;
-
-  void _onMapCreated(MapplsMapController controller) {
-    _controller = controller;
-    final mallPosition = LatLng(
-      AppConstants.mallCenter.latitude,
-      AppConstants.mallCenter.longitude,
+  void _onMapCreated(mappls.MapplsMapController controller) {
+    final mallPosition = mappls.LatLng(
+      app_constants.AppConstants.mallCenter.latitude,
+      app_constants.AppConstants.mallCenter.longitude,
     );
-    controller.addSymbol(SymbolOptions(geometry: mallPosition));
+    controller.addSymbol(mappls.SymbolOptions(geometry: mallPosition));
   }
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb || !AppConstants.enableMaps) {
+    if (kIsWeb || !app_constants.AppConstants.enableMaps) {
       return _MapPlaceholder(
-        title: AppConstants.mallName,
+        title: app_constants.AppConstants.mallName,
         subtitle: 'Map preview not available on this platform.',
       );
     }
 
-    final mallPosition = LatLng(
-      AppConstants.mallCenter.latitude,
-      AppConstants.mallCenter.longitude,
+    final mallPosition = mappls.LatLng(
+      app_constants.AppConstants.mallCenter.latitude,
+      app_constants.AppConstants.mallCenter.longitude,
     );
 
     return Container(
@@ -53,10 +50,11 @@ class _MallMapCardState extends State<MallMapCard> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
-        child: MapplsMap(
-          initialCameraPosition: CameraPosition(target: mallPosition, zoom: 14),
-          zoomControlsEnabled: false,
-          myLocationButtonEnabled: false,
+        child: mappls.MapplsMap(
+          initialCameraPosition: mappls.CameraPosition(
+            target: mallPosition,
+            zoom: 14,
+          ),
           onMapCreated: _onMapCreated,
         ),
       ),

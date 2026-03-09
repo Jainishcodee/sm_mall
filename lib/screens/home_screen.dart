@@ -56,7 +56,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         final isCurrentRoute = ModalRoute.of(context)?.isCurrent ?? false;
         if (!sheetShown && !isServiceSheetOpen && isCurrentRoute) {
           sheetShown = true;
-          _showServiceUnavailable(context, locationState.distanceKm);
+          _showServiceUnavailable(context, locationState);
         }
       });
     }
@@ -311,7 +311,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _showServiceUnavailable(
     BuildContext context,
-    double? distanceKm,
+    LocationState locationState,
   ) async {
     if (!mounted || isServiceSheetOpen) {
       return;
@@ -344,15 +344,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'MallDash currently delivers within ${AppConstants.serviceRadiusKm.toStringAsFixed(0)} km of ${AppConstants.mallName}.',
+                'MallDash currently delivers within ${(locationState.serviceRadiusKm ?? AppConstants.serviceRadiusKm).toStringAsFixed(0)} km of ${locationState.zoneName ?? AppConstants.mallName}.',
                 style: Theme.of(
                   context,
                 ).textTheme.bodyMedium?.copyWith(color: AppColors.slate500),
               ),
-              if (distanceKm != null) ...[
+              if (locationState.distanceKm != null) ...[
                 const SizedBox(height: 10),
                 Text(
-                  'You are ~${distanceKm.toStringAsFixed(1)} km away.',
+                  'You are ~${locationState.distanceKm!.toStringAsFixed(1)} km away.',
                   style: Theme.of(
                     context,
                   ).textTheme.bodyMedium?.copyWith(color: AppColors.slate700),

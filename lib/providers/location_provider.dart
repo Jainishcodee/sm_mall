@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
-import '../constants/app_constants.dart';
+import 'delivery_zone_provider.dart';
 
 enum LocationStatus {
   idle,
@@ -16,11 +16,19 @@ enum LocationStatus {
 class LocationState {
   final LocationStatus status;
   final double? distanceKm;
+  final double? latitude;
+  final double? longitude;
+  final double? serviceRadiusKm;
+  final String? zoneName;
   final String? message;
 
   const LocationState({
     required this.status,
     this.distanceKm,
+    this.latitude,
+    this.longitude,
+    this.serviceRadiusKm,
+    this.zoneName,
     this.message,
   });
 
@@ -29,7 +37,10 @@ class LocationState {
 }
 
 class LocationNotifier extends StateNotifier<LocationState> {
-  LocationNotifier() : super(const LocationState(status: LocationStatus.idle));
+  LocationNotifier(this._ref)
+    : super(const LocationState(status: LocationStatus.idle));
+
+  final Ref _ref;
 
   Future<void> checkLocation() async {
     state = const LocationState(status: LocationStatus.loading);
@@ -58,26 +69,36 @@ class LocationNotifier extends StateNotifier<LocationState> {
     }
 
     try {
+      final zone = await _ref.read(deliveryZoneProvider.future);
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
       final distanceMeters = Geolocator.distanceBetween(
         position.latitude,
         position.longitude,
-        AppConstants.mallCenter.latitude,
-        AppConstants.mallCenter.longitude,
+        zone.latitude,
+        zone.longitude,
       );
       final distanceKm = distanceMeters / 1000;
-      if (distanceKm > AppConstants.serviceRadiusKm) {
+      if (distanceKm > zone.radiusKm) {
         state = LocationState(
           status: LocationStatus.outOfRange,
           distanceKm: distanceKm,
-          message: 'Service is available within 10 km of the mall.',
+          latitude: position.latitude,
+          longitude: position.longitude,
+          serviceRadiusKm: zone.radiusKm,
+          zoneName: zone.name,
+          message:
+              'Service is available within ${zone.radiusKm.toStringAsFixed(0)} km of ${zone.name}.',
         );
       } else {
         state = LocationState(
           status: LocationStatus.serviceable,
           distanceKm: distanceKm,
+          latitude: position.latitude,
+          longitude: position.longitude,
+          serviceRadiusKm: zone.radiusKm,
+          zoneName: zone.name,
         );
       }
     } catch (error) {
@@ -89,7 +110,6 @@ class LocationNotifier extends StateNotifier<LocationState> {
   }
 }
 
-final locationProvider =
-    StateNotifierProvider<LocationNotifier, LocationState>(
-  (ref) => LocationNotifier(),
+final locationProvider = StateNotifierProvider<LocationNotifier, LocationState>(
+  (ref) => LocationNotifier(ref),
 );

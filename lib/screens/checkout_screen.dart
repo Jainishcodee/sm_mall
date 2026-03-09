@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/cart_provider.dart';
+import '../providers/location_provider.dart';
 import '../providers/user_prefs_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
@@ -15,8 +16,10 @@ class CheckoutScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cartState = ref.watch(cartProvider);
+    final locationState = ref.watch(locationProvider);
     final prefs = ref.watch(userPrefsProvider).valueOrNull ?? const UserPrefs();
     const deliveryFee = 30.0;
+    final canPlaceOrder = locationState.isServiceable;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
@@ -68,6 +71,10 @@ class CheckoutScreen extends ConsumerWidget {
             PrimaryButton(
               label: 'Place Order',
               onPressed: () {
+                if (!canPlaceOrder) {
+                  _showDeliveryBlockedDialog(context, locationState);
+                  return;
+                }
                 ref.read(cartProvider.notifier).clear();
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const OrderSuccessScreen()),
@@ -75,8 +82,47 @@ class CheckoutScreen extends ConsumerWidget {
                 );
               },
             ),
+            if (!canPlaceOrder)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Not in the range of mall. Move within delivery radius to place order.',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: AppColors.primary),
+                  textAlign: TextAlign.center,
+                ),
+              ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _showDeliveryBlockedDialog(
+    BuildContext context,
+    LocationState locationState,
+  ) async {
+    final distance = locationState.distanceKm;
+    final radius = locationState.serviceRadiusKm?.toStringAsFixed(0) ?? '10';
+    final zoneName = locationState.zoneName ?? 'the mall';
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Not in the range of mall'),
+        content: Text(
+          locationState.status == LocationStatus.outOfRange
+              ? distance == null
+                    ? 'Delivery is available only within $radius km of $zoneName.'
+                    : 'You are ${distance.toStringAsFixed(1)} km away. Delivery is available only within $radius km of $zoneName.'
+              : 'Please allow location permission and keep location services on to place order.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }

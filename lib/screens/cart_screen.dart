@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/cart_provider.dart';
+import '../providers/location_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
 import '../widgets/primary_button.dart';
@@ -12,14 +13,29 @@ import 'home_screen.dart';
 import 'profile_screen.dart';
 import 'wishlist_screen.dart';
 
-class CartScreen extends ConsumerWidget {
+class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends ConsumerState<CartScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(locationProvider.notifier).checkLocation();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final cartState = ref.watch(cartProvider);
+    final locationState = ref.watch(locationProvider);
     final items = cartState.items.values.toList();
     const deliveryFee = 30.0;
+    final canProceedToCheckout = locationState.isServiceable;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Your Cart')),
@@ -151,6 +167,10 @@ class CartScreen extends ConsumerWidget {
                   PrimaryButton(
                     label: 'Proceed to Checkout',
                     onPressed: () {
+                      if (!canProceedToCheckout) {
+                        _showDeliveryBlockedDialog(context, locationState);
+                        return;
+                      }
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => const BillingScreen(),
@@ -158,6 +178,19 @@ class CartScreen extends ConsumerWidget {
                       );
                     },
                   ),
+                  if (!canProceedToCheckout)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        locationState.status == LocationStatus.outOfRange
+                            ? 'Not in the range of mall. Move within delivery radius to place order.'
+                            : 'Enable location and try again to place order.',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.primary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   const SizedBox(height: 6),
                 ],
               ),
@@ -214,6 +247,36 @@ class CartScreen extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+
+  Future<void> _showDeliveryBlockedDialog(
+    BuildContext context,
+    LocationState locationState,
+  ) async {
+    final distance = locationState.distanceKm;
+    final radius = locationState.serviceRadiusKm?.toStringAsFixed(0) ?? '10';
+    final zoneName = locationState.zoneName ?? 'the mall';
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Not in the range of mall'),
+          content: Text(
+            locationState.status == LocationStatus.outOfRange
+                ? distance == null
+                      ? 'Delivery is available only within $radius km of $zoneName.'
+                      : 'You are ${distance.toStringAsFixed(1)} km away. Delivery is available only within $radius km of $zoneName.'
+                : 'Please allow location permission and keep location services on to place order.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

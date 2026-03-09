@@ -23,18 +23,16 @@ class AddressHeader extends ConsumerWidget {
             children: [
               Text(
                 'Delivering to',
-                style: Theme.of(context)
-                    .textTheme
-                    .labelMedium
-                    ?.copyWith(color: AppColors.slate500),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelMedium?.copyWith(color: AppColors.slate500),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: AppColors.slate900),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppColors.slate900),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -49,6 +47,14 @@ class AddressHeader extends ConsumerWidget {
   String _subtitleForState(LocationState state) {
     if (state.status == LocationStatus.serviceable ||
         state.status == LocationStatus.outOfRange) {
+      final lat = state.latitude;
+      final lng = state.longitude;
+      if (lat != null && lng != null) {
+        final distance = state.distanceKm != null
+            ? ' • ${state.distanceKm!.toStringAsFixed(1)} km'
+            : '';
+        return '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}$distance';
+      }
       return AppConstants.defaultAddress;
     }
     if (state.status == LocationStatus.permissionDenied) {
