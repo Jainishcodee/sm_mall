@@ -1,89 +1,147 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../theme/app_colors.dart';
 import '../widgets/progress_stepper.dart';
 
 class OrderTrackingScreen extends StatelessWidget {
-  const OrderTrackingScreen({super.key});
+  final String orderId;
+
+  const OrderTrackingScreen({super.key, required this.orderId});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Track Order'),
+        title: Text('Track Order #${orderId.substring(0, 8).toUpperCase()}'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const ProgressStepper(
-              currentStep: 2,
-              steps: ['Packed', 'On the way', 'Delivered'],
-            ),
-            const SizedBox(height: 20),
-            _StatusCard(
-              title: 'Rider on the way',
-              subtitle: 'Arriving in 12-18 mins',
-              icon: Icons.delivery_dining,
-            ),
-            const SizedBox(height: 14),
-            _StatusCard(
-              title: 'Live updates',
-              subtitle: 'We will notify you at each step.',
-              icon: Icons.notifications_active,
-            ),
-            const SizedBox(height: 14),
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
+      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('orders')
+            .doc(orderId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Text('Error loading order: ${snapshot.error}'),
+            );
+          }
+          final data = snapshot.data?.data();
+          if (data == null) {
+            return const Center(child: Text('Order not found.'));
+          }
+
+          final status = (data['status'] ?? 'Pending') as String;
+          final deliveryStatus =
+              (data['deliveryStatus'] ?? 'Pending') as String;
+          final partner = (data['deliveryPartner'] ?? '') as String;
+          final activeStep = _trackingStep(deliveryStatus, status);
+
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                ProgressStepper(
+                  currentStep: activeStep,
+                  steps: const [
+                    'Assigned',
+                    'Picked up',
+                    'On the way',
+                    'Delivered',
                   ],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Order timeline',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 12),
-                    _TimelineItem(
-                      title: 'Order confirmed',
-                      time: '10:12 AM',
-                      isActive: true,
-                    ),
-                    _TimelineItem(
-                      title: 'Packed at mall',
-                      time: '10:20 AM',
-                      isActive: true,
-                    ),
-                    _TimelineItem(
-                      title: 'Out for delivery',
-                      time: '10:28 AM',
-                      isActive: true,
-                    ),
-                    _TimelineItem(
-                      title: 'Arrives at your door',
-                      time: '10:45 AM',
-                      isActive: false,
-                    ),
-                  ],
+                const SizedBox(height: 20),
+                _StatusCard(
+                  title: 'Delivery Status: $deliveryStatus',
+                  subtitle: partner.isEmpty
+                      ? 'Partner assignment pending'
+                      : 'Delivery partner: $partner',
+                  icon: Icons.delivery_dining,
                 ),
-              ),
+                const SizedBox(height: 14),
+                _StatusCard(
+                  title: 'Order Status: $status',
+                  subtitle: 'Live updates are synced from admin panel.',
+                  icon: Icons.notifications_active,
+                ),
+                const SizedBox(height: 14),
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.06),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Order timeline',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 12),
+                        _TimelineItem(
+                          title: 'Order confirmed',
+                          time: '-',
+                          isActive: true,
+                        ),
+                        _TimelineItem(
+                          title: 'Delivery partner assigned',
+                          time: '-',
+                          isActive: activeStep >= 0,
+                        ),
+                        _TimelineItem(
+                          title: 'Picked up',
+                          time: '-',
+                          isActive: activeStep >= 1,
+                        ),
+                        _TimelineItem(
+                          title: 'On the way',
+                          time: '-',
+                          isActive: activeStep >= 2,
+                        ),
+                        _TimelineItem(
+                          title: 'Delivered',
+                          time: '-',
+                          isActive: activeStep >= 3,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
+  }
+
+  int _trackingStep(String deliveryStatus, String orderStatus) {
+    if (orderStatus == 'Delivered' || deliveryStatus == 'Delivered') {
+      return 3;
+    }
+    switch (deliveryStatus) {
+      case 'Assigned':
+        return 0;
+      case 'Picked up':
+        return 1;
+      case 'On the way':
+        return 2;
+      default:
+        return 0;
+    }
   }
 }
 
@@ -132,18 +190,16 @@ class _StatusCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: AppColors.slate500),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.slate500),
                 ),
               ],
             ),
@@ -184,17 +240,15 @@ class _TimelineItem extends StatelessWidget {
             child: Text(
               title,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color:
-                        isActive ? AppColors.slate900 : AppColors.slate500,
-                  ),
+                color: isActive ? AppColors.slate900 : AppColors.slate500,
+              ),
             ),
           ),
           Text(
             time,
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
-                ?.copyWith(color: AppColors.slate500),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: AppColors.slate500),
           ),
         ],
       ),

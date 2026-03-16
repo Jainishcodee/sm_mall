@@ -31,6 +31,8 @@ extension FirestoreServiceOrdersAndPayments on FirestoreService {
     required double tax,
     required double total,
     required String status,
+    String deliveryStatus = 'Pending',
+    String? deliveryPartner,
     required String paymentStatus,
     required String address,
   }) async {
@@ -43,6 +45,8 @@ extension FirestoreServiceOrdersAndPayments on FirestoreService {
       'tax': tax,
       'total': total,
       'status': status,
+      'deliveryStatus': deliveryStatus,
+      'deliveryPartner': deliveryPartner,
       'paymentStatus': paymentStatus,
       'address': address,
       'createdAt': FieldValue.serverTimestamp(),
@@ -96,8 +100,28 @@ extension FirestoreServiceOrdersAndPayments on FirestoreService {
 
   /// Update order status (admin only)
   Future<void> updateOrderStatus(String orderId, String newStatus) async {
-    await ordersCollection.doc(orderId).update({
+    final updateData = <String, dynamic>{
       'status': newStatus,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    // Keep delivery timeline in sync for final state.
+    if (newStatus == 'Delivered') {
+      updateData['deliveryStatus'] = 'Delivered';
+    }
+
+    await ordersCollection.doc(orderId).update(updateData);
+  }
+
+  /// Update delivery status (admin only)
+  Future<void> updateOrderDeliveryStatus(
+    String orderId,
+    String deliveryStatus, {
+    String? deliveryPartner,
+  }) async {
+    await ordersCollection.doc(orderId).update({
+      'deliveryStatus': deliveryStatus,
+      if (deliveryPartner != null) 'deliveryPartner': deliveryPartner,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }

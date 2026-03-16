@@ -8,6 +8,9 @@ class Order {
   final double tax;
   final double total;
   final String status; // Pending, Accepted, Ready, On the way, Delivered
+  final String
+  deliveryStatus; // Pending, Assigned, Picked up, On the way, Delivered
+  final String? deliveryPartner;
   final String paymentStatus; // Pending, Completed, Failed
   final String address;
   final DateTime createdAt;
@@ -23,6 +26,8 @@ class Order {
     required this.tax,
     required this.total,
     required this.status,
+    required this.deliveryStatus,
+    this.deliveryPartner,
     required this.paymentStatus,
     required this.address,
     required this.createdAt,
@@ -40,6 +45,8 @@ class Order {
       tax: (data['tax'] ?? 0).toDouble(),
       total: (data['total'] ?? 0).toDouble(),
       status: data['status'] ?? 'Pending',
+      deliveryStatus: data['deliveryStatus'] ?? 'Pending',
+      deliveryPartner: data['deliveryPartner'] as String?,
       paymentStatus: data['paymentStatus'] ?? 'Pending',
       address: data['address'] ?? '',
       createdAt: (data['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
@@ -57,6 +64,8 @@ class Order {
       'tax': tax,
       'total': total,
       'status': status,
+      'deliveryStatus': deliveryStatus,
+      'deliveryPartner': deliveryPartner,
       'paymentStatus': paymentStatus,
       'address': address,
       'createdAt': createdAt,

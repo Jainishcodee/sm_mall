@@ -302,6 +302,7 @@ class _OrderTile extends StatelessWidget {
     if (selected != null && selected != current) {
       await FirebaseFirestore.instance.collection('orders').doc(docId).update({
         'status': selected,
+        if (selected == 'Delivered') 'deliveryStatus': 'Delivered',
         'updatedAt': FieldValue.serverTimestamp(),
       });
     }
@@ -310,6 +311,7 @@ class _OrderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = (data['status'] ?? 'Pending') as String;
+    final deliveryStatus = (data['deliveryStatus'] ?? 'Pending') as String;
     final sc = _statusColor(status);
     final customer = (data['customerName'] ?? 'Customer') as String;
     final total = ((data['total'] ?? 0) as num).toDouble();
@@ -393,6 +395,24 @@ class _OrderTile extends StatelessWidget {
                       const SizedBox(width: 4),
                       Icon(Icons.keyboard_arrow_down, color: sc, size: 16),
                     ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Delivery: $deliveryStatus',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.slate700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),

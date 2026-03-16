@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../providers/cart_provider.dart';
 import '../providers/location_provider.dart';
 import '../providers/user_prefs_provider.dart';
+import '../services/firestore_service.dart';
+import '../services/firestore_service_extensions.dart';
 import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
 import '../widgets/primary_button.dart';
@@ -70,16 +73,92 @@ class CheckoutScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             PrimaryButton(
               label: 'Place Order',
-              onPressed: () {
+              onPressed: () async {
                 if (!canPlaceOrder) {
                   _showDeliveryBlockedDialog(context, locationState);
                   return;
                 }
-                ref.read(cartProvider.notifier).clear();
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const OrderSuccessScreen()),
-                  (route) => route.isFirst,
-                );
+
+                final user = FirebaseAuth.instance.currentUser;
+                if (user == null) {
+                  if (!context.mounted) {
+                    return;
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please login to place order.'),
+                    ),
+                  );
+                  return;
+                }
+
+                final cartItems = cartState.items.values.toList();
+                if (cartItems.isEmpty) {
+                  if (!context.mounted) {
+                    return;
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Cart is empty.')),
+                  );
+                  return;
+                }
+
+                final itemsPayload = cartItems
+                    .map(
+                      (item) => {
+                        'productId': item.product.id,
+                        'name': item.product.name,
+                        'unit': item.product.unit,
+                        'price': item.product.price,
+                        'quantity': item.quantity,
+                        'total': item.totalPrice,
+                      },
+                    )
+                    .toList();
+
+                final subtotal = cartState.totalPrice;
+                final total = subtotal + deliveryFee;
+
+                try {
+                  final orderId = await ref
+                      .read(firestoreServiceProvider)
+                      .createOrder(
+                        userId: user.uid,
+                        customerName:
+                            user.displayName?.trim().isNotEmpty == true
+                            ? user.displayName!.trim()
+                            : (user.email?.trim().isNotEmpty == true
+                                  ? user.email!
+                                  : 'Customer'),
+                        items: itemsPayload,
+                        subtotal: subtotal,
+                        deliveryFee: deliveryFee,
+                        tax: 0,
+                        total: total,
+                        status: 'Pending',
+                        deliveryStatus: 'Pending',
+                        paymentStatus: 'Pending',
+                        address: prefs.deliveryAddress,
+                      );
+
+                  ref.read(cartProvider.notifier).clear();
+                  if (!context.mounted) {
+                    return;
+                  }
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (_) => OrderSuccessScreen(orderId: orderId),
+                    ),
+                    (route) => route.isFirst,
+                  );
+                } catch (error) {
+                  if (!context.mounted) {
+                    return;
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to place order: $error')),
+                  );
+                }
               },
             ),
             if (!canPlaceOrder)
