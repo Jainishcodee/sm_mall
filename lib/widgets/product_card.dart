@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/product.dart';
 import '../providers/cart_provider.dart';
+import '../screens/product_detail_screen.dart';
 import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
 import 'quantity_control.dart';
@@ -17,20 +18,26 @@ class ProductCard extends ConsumerWidget {
     final cartState = ref.watch(cartProvider);
     final quantity = cartState.items[product.id]?.quantity ?? 0;
 
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ProductDetailScreen(product: product),
+        ),
       ),
-      child: Column(
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
@@ -119,7 +126,8 @@ class ProductCard extends ConsumerWidget {
               );
             },
           ),
-        ],
+          ],
+        ),
       ),
     );
   }

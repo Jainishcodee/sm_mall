@@ -3,9 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../constants/app_constants.dart';
+import '../services/admin_auth_service.dart';
 import '../theme/app_colors.dart';
-import '../utils/phone_utils.dart';
 import '../widgets/primary_button.dart';
 import 'admin_dashboard_screen.dart';
 import 'home_screen.dart';
@@ -45,13 +44,20 @@ class _OtpScreenState extends State<OtpScreen> {
     super.dispose();
   }
 
-  void _handleSignedIn(String phoneNumber) {
-    _saveUserProfile();
+  /// After Firebase sign-in, check Firestore for admin flag and route accordingly.
+  Future<void> _handleSignedIn() async {
+    await _saveUserProfile();
+    if (!mounted) return;
+
+    final adminService = AdminAuthService();
+    final isAdmin = await adminService.isCurrentUserAdmin();
+    if (!mounted) return;
+
     final navigator = Navigator.of(context, rootNavigator: true);
     if (widget.isBottomSheet) {
       navigator.pop();
     }
-    final isAdmin = last10Digits(phoneNumber) == AppConstants.adminPhone;
+
     if (isAdmin) {
       navigator.pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
@@ -86,6 +92,7 @@ class _OtpScreenState extends State<OtpScreen> {
     }, SetOptions(merge: true));
   }
 
+  /// Bypass OTP for demo/testing — always routes to customer HomeScreen.
   void _handleBypass(String code) {
     final navigator = Navigator.of(context, rootNavigator: true);
     if (widget.isBottomSheet) {
@@ -117,12 +124,8 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   Future<void> _verifyOtp() async {
-    if (isVerifying) {
-      return;
-    }
+    if (isVerifying) return;
     final code = otpController.text.trim();
-    final isAdminPhone =
-        last10Digits(widget.phoneNumber) == AppConstants.adminPhone;
     if (code.isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -130,36 +133,27 @@ class _OtpScreenState extends State<OtpScreen> {
       return;
     }
 
-    if ((code == '1234' || code == '12345') && isAdminPhone) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Admin login requires real OTP verification.'),
-        ),
-      );
-      return;
-    }
-
     setState(() => isVerifying = true);
     try {
+      // Demo bypass codes — only for non-authenticated testing, always customer.
       if (code == '1234' || code == '12345') {
         setState(() => isVerifying = false);
         _handleBypass(code);
         return;
       }
+
+      // Real OTP verification via Firebase Auth
       final credential = PhoneAuthProvider.credential(
         verificationId: widget.verificationId,
         smsCode: code,
       );
       await FirebaseAuth.instance.signInWithCredential(credential);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() => isVerifying = false);
-      _handleSignedIn(widget.phoneNumber);
+      await _handleSignedIn();
     } on FirebaseAuthException catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
+      // Fallback bypass on auth error for demo codes
       if (code == '1234' || code == '12345') {
         setState(() => isVerifying = false);
         _handleBypass(code);

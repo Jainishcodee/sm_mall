@@ -345,15 +345,30 @@ class _OrderTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '#${docId.substring(0, 8).toUpperCase()}',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          '#${docId.substring(0, 8).toUpperCase()}',
+                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            customer,
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.slate700,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '$customer · $items item${items != 1 ? 's' : ''}',
+                      '$items item${items != 1 ? 's' : ''}',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: AppColors.slate500,
                       ),

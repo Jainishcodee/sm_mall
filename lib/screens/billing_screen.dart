@@ -30,11 +30,13 @@ const _slots = [
 const _paymentMethods = [
   'Cash on Delivery',
   'UPI',
-  'Debit Card',
-  'Credit Card',
-  'Net Banking',
-  'Wallet',
 ];
+
+// Icons for each payment method
+const _paymentIcons = {
+  'Cash on Delivery': Icons.money,
+  'UPI': Icons.qr_code_2,
+};
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -271,46 +273,11 @@ class BillingScreen extends ConsumerWidget {
   void _showPaymentSheet(BuildContext context, WidgetRef ref, String current) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Payment Method', style: Theme.of(ctx).textTheme.titleMedium),
-            const SizedBox(height: 12),
-            ..._paymentMethods.map((method) {
-              final selected = method == current;
-              return ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  selected
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_off,
-                  color: selected ? AppColors.success : AppColors.slate400,
-                  size: 20,
-                ),
-                title: Text(
-                  method,
-                  style: TextStyle(
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  ),
-                ),
-                onTap: () {
-                  ref
-                      .read(userPrefsProvider.notifier)
-                      .savePaymentMethod(method);
-                  Navigator.of(ctx).pop();
-                },
-              );
-            }),
-          ],
-        ),
-      ),
+      builder: (_) => _PaymentMethodSheet(current: current, ref: ref),
     );
   }
 }
@@ -420,6 +387,136 @@ class _SummaryRow extends StatelessWidget {
         Text(label, style: style),
         Text(value, style: style),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Payment method bottom sheet with QR code for UPI
+// ---------------------------------------------------------------------------
+
+class _PaymentMethodSheet extends StatefulWidget {
+  final String current;
+  final WidgetRef ref;
+
+  const _PaymentMethodSheet({required this.current, required this.ref});
+
+  @override
+  State<_PaymentMethodSheet> createState() => _PaymentMethodSheetState();
+}
+
+class _PaymentMethodSheetState extends State<_PaymentMethodSheet> {
+  late String _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.current;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Payment Method', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          ..._paymentMethods.map((method) {
+            final selected = method == _selected;
+            return ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_off,
+                color: selected ? AppColors.success : AppColors.slate400,
+                size: 20,
+              ),
+              trailing: Icon(
+                _paymentIcons[method] ?? Icons.payment,
+                color: AppColors.slate500,
+                size: 20,
+              ),
+              title: Text(
+                method,
+                style: TextStyle(
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+              onTap: () {
+                setState(() => _selected = method);
+                widget.ref
+                    .read(userPrefsProvider.notifier)
+                    .savePaymentMethod(method);
+                if (method != 'UPI') {
+                  Navigator.of(context).pop();
+                }
+              },
+            );
+          }),
+          // Show QR code when UPI is selected
+          if (_selected == 'UPI') ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.success.withOpacity(0.3)),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Scan to Pay via UPI',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.slate900,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset(
+                      'assets/images/QR.jpeg',
+                      width: 200,
+                      height: 200,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Pay using any UPI app',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.slate500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.success,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Done'),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

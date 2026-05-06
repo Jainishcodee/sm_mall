@@ -13,11 +13,25 @@ import '../widgets/primary_button.dart';
 import '../widgets/progress_stepper.dart';
 import 'order_success_screen.dart';
 
-class CheckoutScreen extends ConsumerWidget {
+class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CheckoutScreen> createState() => _CheckoutScreenState();
+}
+
+class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Re-check location when entering checkout so the state is fresh.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(locationProvider.notifier).checkLocation();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final cartState = ref.watch(cartProvider);
     final locationState = ref.watch(locationProvider);
     final prefs = ref.watch(userPrefsProvider).valueOrNull ?? const UserPrefs();
@@ -26,54 +40,66 @@ class CheckoutScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const ProgressStepper(
-              currentStep: 2,
-              steps: ['Cart', 'Billing', 'Pay'],
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const ProgressStepper(
+                  currentStep: 2,
+                  steps: ['Cart', 'Billing', 'Pay'],
+                ),
+                const SizedBox(height: 20),
+                _InfoCard(
+                  title: 'Delivery Address',
+                  subtitle: prefs.deliveryAddress.isEmpty
+                      ? 'No address set'
+                      : prefs.deliveryAddress,
+                  trailing: 'Change',
+                  onTap: () => Navigator.of(context).pop(),
+                ),
+                const SizedBox(height: 12),
+                _InfoCard(
+                  title: 'Delivery Slot',
+                  subtitle: prefs.deliverySlot,
+                  trailing: 'Edit',
+                  onTap: () => Navigator.of(context).pop(),
+                ),
+                const SizedBox(height: 12),
+                _InfoCard(
+                  title: 'Payment',
+                  subtitle: prefs.paymentMethod,
+                  trailing: 'Switch',
+                  onTap: () => Navigator.of(context).pop(),
+                ),
+                if (prefs.paymentMethod == 'UPI') ...[
+                  const SizedBox(height: 16),
+                  _UpiQrCard(),
+                ],
+                const SizedBox(height: 24),
+                _SummaryRow(
+                  label: 'Subtotal',
+                  value: formatRupees(cartState.totalPrice),
+                ),
+                const SizedBox(height: 8),
+                const _SummaryRow(label: 'Delivery fee', value: '₹30'),
+                const SizedBox(height: 8),
+                _SummaryRow(
+                  label: 'Total',
+                  value: formatRupees(cartState.totalPrice + deliveryFee),
+                  isEmphasized: true,
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-            _InfoCard(
-              title: 'Delivery Address',
-              subtitle: prefs.deliveryAddress.isEmpty
-                  ? 'No address set'
-                  : prefs.deliveryAddress,
-              trailing: 'Change',
-              onTap: () => Navigator.of(context).pop(),
-            ),
-            const SizedBox(height: 12),
-            _InfoCard(
-              title: 'Delivery Slot',
-              subtitle: prefs.deliverySlot,
-              trailing: 'Edit',
-              onTap: () => Navigator.of(context).pop(),
-            ),
-            const SizedBox(height: 12),
-            _InfoCard(
-              title: 'Payment',
-              subtitle: prefs.paymentMethod,
-              trailing: 'Switch',
-              onTap: () => Navigator.of(context).pop(),
-            ),
-            const Spacer(),
-            _SummaryRow(
-              label: 'Subtotal',
-              value: formatRupees(cartState.totalPrice),
-            ),
-            const SizedBox(height: 8),
-            const _SummaryRow(label: 'Delivery fee', value: '₹30'),
-            const SizedBox(height: 8),
-            _SummaryRow(
-              label: 'Total',
-              value: formatRupees(cartState.totalPrice + deliveryFee),
-              isEmphasized: true,
-            ),
-            const SizedBox(height: 16),
-            PrimaryButton(
-              label: 'Place Order',
-              onPressed: () async {
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: Column(
+              children: [
+                PrimaryButton(
+                  label: 'Place Order',
+                  onPressed: () async {
                 if (!canPlaceOrder) {
                   _showDeliveryBlockedDialog(context, locationState);
                   return;
@@ -120,25 +146,27 @@ class CheckoutScreen extends ConsumerWidget {
                 final total = subtotal + deliveryFee;
 
                 try {
+                  final customerName =
+                      user.displayName?.trim().isNotEmpty == true
+                      ? user.displayName!.trim()
+                      : (user.email?.trim().isNotEmpty == true
+                            ? user.email!
+                            : 'Customer');
+
+                  // Atomic transaction: creates order + payment together.
+                  // If either fails the whole operation rolls back.
                   final orderId = await ref
                       .read(firestoreServiceProvider)
-                      .createOrder(
+                      .placeOrderWithPayment(
                         userId: user.uid,
-                        customerName:
-                            user.displayName?.trim().isNotEmpty == true
-                            ? user.displayName!.trim()
-                            : (user.email?.trim().isNotEmpty == true
-                                  ? user.email!
-                                  : 'Customer'),
+                        customerName: customerName,
                         items: itemsPayload,
                         subtotal: subtotal,
                         deliveryFee: deliveryFee,
                         tax: 0,
                         total: total,
-                        status: 'Pending',
-                        deliveryStatus: 'Pending',
-                        paymentStatus: 'Pending',
                         address: prefs.deliveryAddress,
+                        paymentMethod: prefs.paymentMethod,
                       );
 
                   ref.read(cartProvider.notifier).clear();
@@ -161,19 +189,21 @@ class CheckoutScreen extends ConsumerWidget {
                 }
               },
             ),
-            if (!canPlaceOrder)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Not in the range of mall. Move within delivery radius to place order.',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(color: AppColors.primary),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-          ],
-        ),
+                if (!canPlaceOrder)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Not in the range of mall. Move within delivery radius to place order.',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.labelSmall?.copyWith(color: AppColors.primary),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -257,6 +287,55 @@ class _InfoCard extends StatelessWidget {
             child: Text(
               trailing,
               style: const TextStyle(color: AppColors.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UpiQrCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            'Scan to Pay via UPI',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.slate900,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.asset(
+              'assets/images/QR.jpeg',
+              width: 200,
+              height: 200,
+              fit: BoxFit.contain,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Pay using any UPI app',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppColors.slate500,
             ),
           ),
         ],

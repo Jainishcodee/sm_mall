@@ -1,102 +1,118 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to check if user is admin
+    // ─── Helper functions ───
+
+    // Admin check: reads the caller's user document for isAdmin flag.
+    // Falls back to false when the document doesn't exist yet.
     function isAdmin() {
-      return request.auth.token.phone_number == '9408362739' || 
-             request.auth.token.phone_number == '+919408362739';
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Helper function to check if user is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Helper function to check if user owns the document
     function isUserOwner(userId) {
       return request.auth.uid == userId;
     }
 
-    // Categories Collection - Read: Everyone, Write: Admin only
+    // ─── Categories ───
     match /categories/{categoryId} {
       allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isAuthenticated() && isAdmin();
     }
 
-    // Products Collection - Read: Everyone, Write: Admin only
+    // ─── Products ───
     match /products/{productId} {
       allow read: if isAuthenticated();
-      allow create: if isAdmin() && 
+      allow create: if isAuthenticated() && isAdmin() &&
                        request.resource.data.name is string &&
                        request.resource.data.category is string &&
                        request.resource.data.price is number &&
                        request.resource.data.unit is string &&
                        request.resource.data.storeId is string;
-      allow update: if isAdmin() &&
+      allow update: if isAuthenticated() && isAdmin() &&
                        request.resource.data.name is string &&
                        request.resource.data.category is string &&
                        request.resource.data.price is number &&
                        request.resource.data.unit is string;
-      allow delete: if isAdmin();
+      allow delete: if isAuthenticated() && isAdmin();
     }
 
-    // Users Collection - Each user can only read/write their own data
+    // ─── Users ───
     match /users/{userId} {
-      allow read: if isUserOwner(userId) || isAdmin();
+      allow read: if isUserOwner(userId) || (isAuthenticated() && isAdmin());
       allow create: if isUserOwner(userId);
-      allow update: if isUserOwner(userId);
-      allow delete: if isAdmin();
+      // Users can update own profile but CANNOT set isAdmin on themselves.
+      allow update: if isUserOwner(userId) &&
+                       (!('isAdmin' in request.resource.data) ||
+                        request.resource.data.isAdmin == resource.data.isAdmin);
+      allow delete: if isAuthenticated() && isAdmin();
 
       // User Addresses Subcollection
       match /addresses/{addressId} {
-        allow read: if isUserOwner(userId) || isAdmin();
-        allow create: if isUserOwner(userId) && 
+        allow read: if isUserOwner(userId) || (isAuthenticated() && isAdmin());
+        allow create: if isUserOwner(userId) &&
                          request.resource.data.address is string &&
                          request.resource.data.label is string;
         allow update: if isUserOwner(userId);
-        allow delete: if isUserOwner(userId) || isAdmin();
+        allow delete: if isUserOwner(userId) || (isAuthenticated() && isAdmin());
       }
     }
 
-    // Orders Collection - Users can read their own, Admin can read all
+    // ─── Orders ───
     match /orders/{orderId} {
-      allow read: if isAdmin() || 
-                     (isAuthenticated() && 
-                      resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && 
+      // Read: own orders or admin
+      allow read: if isAuthenticated() &&
+                     (isAdmin() || resource.data.userId == request.auth.uid);
+
+      // Create: authenticated user, userId must match caller
+      allow create: if isAuthenticated() &&
                        request.resource.data.userId == request.auth.uid &&
                        request.resource.data.total is number &&
                        request.resource.data.status is string &&
                        request.resource.data.items is list;
-      allow update: if isAdmin() || 
-                       (isUserOwner(resource.data.userId) && 
-                        request.resource.data.userId == resource.data.userId);
-      allow delete: if isAdmin();
 
-      // Order Items Subcollection (optional if used)
+      // Update: ONLY admin can update orders (status, delivery, payment).
+      // Customers cannot modify their orders after creation.
+      allow update: if isAuthenticated() && isAdmin();
+
+      allow delete: if isAuthenticated() && isAdmin();
+
+      // Order Items Subcollection
       match /items/{itemId} {
-        allow read: if isAdmin() || 
-                       (isAuthenticated() && 
+        allow read: if isAuthenticated() &&
+                       (isAdmin() ||
                         get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid);
-        allow write: if isAdmin();
+        allow write: if isAuthenticated() && isAdmin();
       }
     }
 
-    // Payments Collection - Users can read their own, Admin can read all
+    // ─── Payments ───
     match /payments/{paymentId} {
-      allow read: if isAdmin() || 
-                     (isAuthenticated() && 
-                      resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && 
+      allow read: if isAuthenticated() &&
+                     (isAdmin() || resource.data.userId == request.auth.uid);
+
+      // Create: authenticated user creating their own payment record
+      allow create: if isAuthenticated() &&
                        request.resource.data.userId == request.auth.uid &&
                        request.resource.data.amount is number &&
                        request.resource.data.orderId is string &&
                        request.resource.data.status is string;
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+
+      // Update/delete: admin only
+      allow update: if isAuthenticated() && isAdmin();
+      allow delete: if isAuthenticated() && isAdmin();
     }
 
-    // Default deny all other access
+    // ─── App Settings ───
+    match /app_settings/{doc} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isAdmin();
+    }
+
+    // Default deny
     match /{document=**} {
       allow read, write: if false;
     }

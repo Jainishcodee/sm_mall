@@ -10,6 +10,7 @@ import 'admin_inventory_screen.dart';
 import 'admin_orders_screen.dart';
 import 'admin_payments_screen.dart';
 import 'admin_products_screen.dart';
+import 'admin_users_screen.dart';
 import 'login_screen.dart';
 import 'settings_screen.dart';
 
@@ -241,6 +242,17 @@ class AdminDashboardScreen extends ConsumerWidget {
                           context,
                           MaterialPageRoute(
                             builder: (_) => const AdminPaymentsScreen(),
+                          ),
+                        ),
+                      ),
+                      _ActionTile(
+                        label: 'Users',
+                        icon: Icons.people_outline,
+                        color: AppColors.success,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AdminUsersScreen(),
                           ),
                         ),
                       ),

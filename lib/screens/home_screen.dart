@@ -33,7 +33,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(locationProvider.notifier).checkLocation();
+      // Force on first load so location is fetched right after login.
+      ref.read(locationProvider.notifier).checkLocation(force: true);
     });
   }
 
@@ -93,7 +94,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   child: _LocationEnableCard(
                     onEnable: () =>
-                        ref.read(locationProvider.notifier).checkLocation(),
+                        ref.read(locationProvider.notifier).checkLocation(force: true),
                   ),
                 ),
               ),

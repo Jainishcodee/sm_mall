@@ -54,6 +54,65 @@ extension FirestoreServiceOrdersAndPayments on FirestoreService {
     return doc.id;
   }
 
+  /// Atomically creates an order and its payment record in a single transaction.
+  /// Returns the order document ID. If either write fails the whole operation
+  /// is rolled back — no orphaned orders or payments.
+  Future<String> placeOrderWithPayment({
+    required String userId,
+    required String customerName,
+    required List<Map<String, dynamic>> items,
+    required double subtotal,
+    required double deliveryFee,
+    required double tax,
+    required double total,
+    required String address,
+    required String paymentMethod,
+    String? cardLast4,
+    String? upiId,
+    String? walletProvider,
+    String? bankName,
+  }) async {
+    // Pre-generate document refs so both docs can reference each other.
+    final orderRef = ordersCollection.doc();
+    final paymentRef = paymentsCollection.doc();
+
+    await firestore.runTransaction((transaction) async {
+      // ── Create order ──
+      transaction.set(orderRef, {
+        'userId': userId,
+        'customerName': customerName,
+        'items': items,
+        'subtotal': subtotal,
+        'deliveryFee': deliveryFee,
+        'tax': tax,
+        'total': total,
+        'status': 'Pending',
+        'deliveryStatus': 'Pending',
+        'paymentStatus': 'Pending',
+        'paymentId': paymentRef.id,
+        'address': address,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // ── Create payment ──
+      transaction.set(paymentRef, {
+        'orderId': orderRef.id,
+        'userId': userId,
+        'amount': total,
+        'paymentMethod': paymentMethod,
+        'cardLast4': cardLast4,
+        'upiId': upiId,
+        'walletProvider': walletProvider,
+        'bankName': bankName,
+        'status': 'Pending',
+        'transactionId': 'TXN-${orderRef.id}',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    });
+
+    return orderRef.id;
+  }
+
   /// Get a specific order
   Future<Order?> getOrder(String orderId) async {
     final doc = await ordersCollection.doc(orderId).get();

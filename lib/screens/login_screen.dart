@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../constants/app_constants.dart';
+import '../services/admin_auth_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/phone_utils.dart';
 import '../widgets/primary_button.dart';
@@ -49,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
             return;
           }
           setState(() => isSending = false);
-          _handleSignedIn(normalized);
+          await _handleSignedIn();
         },
         verificationFailed: (error) {
           if (!mounted) {
@@ -97,8 +98,12 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _handleSignedIn(String phoneNumber) {
-    final isAdmin = last10Digits(phoneNumber) == AppConstants.adminPhone;
+  /// Route based on Firestore `isAdmin` flag instead of hardcoded phone number.
+  Future<void> _handleSignedIn() async {
+    final adminService = AdminAuthService();
+    final isAdmin = await adminService.isCurrentUserAdmin();
+    if (!mounted) return;
+
     if (isAdmin) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
@@ -193,13 +198,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Admin: ${AppConstants.adminPhone} + OTP: 1234',
+                      'Admin: Set isAdmin=true in Firestore user doc',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: AppColors.slate700,
                       ),
                     ),
                     Text(
-                      'User: Any phone + OTP: 12345',
+                      'User: Any phone + real OTP',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: AppColors.slate700,
                       ),

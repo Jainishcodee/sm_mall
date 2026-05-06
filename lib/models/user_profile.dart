@@ -7,6 +7,7 @@ class UserProfile {
   final String photoUrl;
   final String gender;
   final bool isActive;
+  final bool isAdmin;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -19,6 +20,7 @@ class UserProfile {
     this.photoUrl = '',
     this.gender = '',
     this.isActive = true,
+    this.isAdmin = false,
     required this.createdAt,
     this.updatedAt,
   });
@@ -46,6 +48,7 @@ class UserProfile {
       photoUrl: (data['photoUrl'] as String?) ?? '',
       gender: (data['gender'] as String?) ?? '',
       isActive: (data['isActive'] as bool?) ?? true,
+      isAdmin: (data['isAdmin'] as bool?) ?? false,
       createdAt: (data['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as dynamic)?.toDate(),
     );
@@ -61,6 +64,7 @@ class UserProfile {
       'photoUrl': photoUrl,
       'gender': gender,
       'isActive': isActive,
+      'isAdmin': isAdmin,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
     };
