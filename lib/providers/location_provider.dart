@@ -7,6 +7,7 @@ enum LocationStatus {
   idle,
   loading,
   permissionDenied,
+  permissionDeniedForever,
   serviceDisabled,
   serviceable,
   outOfRange,
@@ -76,8 +77,15 @@ class LocationNotifier extends StateNotifier<LocationState> {
         permission = await Geolocator.requestPermission();
       }
 
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      if (permission == LocationPermission.deniedForever) {
+        state = const LocationState(
+          status: LocationStatus.permissionDeniedForever,
+          message:
+              'Location permission permanently denied — open settings to allow.',
+        );
+        return;
+      }
+      if (permission == LocationPermission.denied) {
         state = const LocationState(
           status: LocationStatus.permissionDenied,
           message: 'Location permission denied.',

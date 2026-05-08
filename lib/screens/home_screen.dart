@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../constants/app_constants.dart';
 import '../providers/location_provider.dart';
@@ -65,6 +66,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final bottomInset = kBottomNavigationBarHeight + 120;
     final showLocationCard =
         locationState.status == LocationStatus.permissionDenied ||
+        locationState.status == LocationStatus.permissionDeniedForever ||
         locationState.status == LocationStatus.serviceDisabled;
 
     return Scaffold(
@@ -93,8 +95,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   child: _LocationEnableCard(
-                    onEnable: () =>
-                        ref.read(locationProvider.notifier).checkLocation(force: true),
+                    status: locationState.status,
+                    onEnable: () => _handleEnableLocation(
+                      ref,
+                      locationState.status,
+                    ),
                   ),
                 ),
               ),
@@ -132,7 +137,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => CategoriesScreen(
-                                  initialCategory: category.name,
+                                  initialCategoryId: category.id,
                                 ),
                               ),
                             );
@@ -330,6 +335,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  /// Open the right system screen for the current state, then re-check.
+  /// Just calling `checkLocation` again does nothing useful when the GPS
+  /// toggle is off or the user previously hit "Don't allow forever" — they
+  /// have to flip a switch in Settings first.
+  Future<void> _handleEnableLocation(
+    WidgetRef ref,
+    LocationStatus status,
+  ) async {
+    final notifier = ref.read(locationProvider.notifier);
+    if (status == LocationStatus.serviceDisabled) {
+      await Geolocator.openLocationSettings();
+    } else if (status == LocationStatus.permissionDeniedForever) {
+      await Geolocator.openAppSettings();
+    }
+    // For plain `permissionDenied` (still askable), just re-check — that
+    // re-fires the system permission dialog from inside `checkLocation`.
+    await notifier.checkLocation(force: true);
+  }
+
   Future<void> _showServiceUnavailable(
     BuildContext context,
     LocationState locationState,
@@ -495,12 +519,18 @@ class _PromoBanner extends StatelessWidget {
 }
 
 class _LocationEnableCard extends StatelessWidget {
+  final LocationStatus status;
   final VoidCallback onEnable;
 
-  const _LocationEnableCard({required this.onEnable});
+  const _LocationEnableCard({
+    required this.status,
+    required this.onEnable,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final (title, subtitle, buttonLabel) = _copy(status);
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -532,14 +562,14 @@ class _LocationEnableCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Device location not enabled',
+                  title,
                   style: Theme.of(
                     context,
                   ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Enable your device location for a better delivery experience',
+                  subtitle,
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(color: AppColors.slate500),
@@ -558,10 +588,34 @@ class _LocationEnableCard extends StatelessWidget {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
-            child: const Text('Enable'),
+            child: Text(buttonLabel),
           ),
         ],
       ),
     );
+  }
+
+  (String, String, String) _copy(LocationStatus status) {
+    switch (status) {
+      case LocationStatus.serviceDisabled:
+        return (
+          'Turn on device location',
+          'GPS is off. Open settings to enable it.',
+          'Open Settings',
+        );
+      case LocationStatus.permissionDeniedForever:
+        return (
+          'Location permission blocked',
+          'Permission was set to "Never". Open app settings to allow.',
+          'App Settings',
+        );
+      case LocationStatus.permissionDenied:
+      default:
+        return (
+          'Allow location access',
+          'We need your location to confirm delivery to your area.',
+          'Allow',
+        );
+    }
   }
 }

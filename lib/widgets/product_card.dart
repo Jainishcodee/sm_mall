@@ -56,12 +56,16 @@ class _ProductCardState extends ConsumerState<ProductCard> {
             ),
           ],
         ),
+        // Use Expanded for the image + a non-flex details Column with
+        // mainAxisSize.min. This lets details claim only the height they
+        // need and the image fills the rest, so the card never overflows
+        // even when the grid's aspect ratio gives slightly less height
+        // than `square image + ideal details` would want (was happening
+        // on the Nord 2 with default font scaling).
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Image with overlay ADD / quantity stepper ──────────────
-            AspectRatio(
-              aspectRatio: 1.0,
+            Expanded(
               child: Stack(
                 children: [
                   Positioned.fill(
@@ -117,9 +121,10 @@ class _ProductCardState extends ConsumerState<ProductCard> {
 
             // ── Details ───────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     widget.product.name,
@@ -127,29 +132,22 @@ class _ProductCardState extends ConsumerState<ProductCard> {
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: AppColors.slate900,
-                      height: 1.25,
+                      height: 1.2,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 6),
-                  // Price row — left side reserved for future MRP
-                  // (strikethrough) once Product gains an `mrp` field.
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(
-                        formatRupees(widget.product.price),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 4),
+                  Text(
+                    formatRupees(widget.product.price),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                      height: 1.1,
+                    ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 2),
                   _UnitPill(unit: widget.product.unit),
                 ],
               ),

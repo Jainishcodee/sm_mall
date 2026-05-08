@@ -13,33 +13,32 @@ import 'home_screen.dart';
 import 'profile_screen.dart';
 import 'wishlist_screen.dart';
 
-/// Sentinel name used by the "All Products" chip. Kept here (not in the
-/// `Category` model) so it never collides with a real category created in
-/// Firestore.
-const _kAllCategory = 'All Products';
+/// Sentinel ID used by the "All Products" chip. Never collides with a real
+/// Firestore category doc since their IDs are auto-generated or `cat_*`.
+const _kAllId = '__all__';
 
 class CategoriesScreen extends ConsumerStatefulWidget {
-  /// Optional category name to preselect when this screen is opened
-  /// (e.g. when tapping a category tile on the home screen).
-  final String? initialCategory;
+  /// Optional category **document ID** (e.g. `cat_drinks`) to preselect when
+  /// this screen is opened — products store this exact value in their
+  /// `category` field, so we filter by ID, not by display name.
+  final String? initialCategoryId;
 
-  const CategoriesScreen({super.key, this.initialCategory});
+  const CategoriesScreen({super.key, this.initialCategoryId});
 
   @override
   ConsumerState<CategoriesScreen> createState() => _CategoriesScreenState();
 }
 
 class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
-  /// `null` and `_kAllCategory` both mean "show everything". We keep the
-  /// state as the human-readable category name so chip equality is trivial.
-  String _selected = _kAllCategory;
+  /// Selected category doc ID, or `_kAllId` for "show everything".
+  String _selectedId = _kAllId;
 
   @override
   void initState() {
     super.initState();
-    final initial = widget.initialCategory?.trim();
+    final initial = widget.initialCategoryId?.trim();
     if (initial != null && initial.isNotEmpty) {
-      _selected = initial;
+      _selectedId = initial;
     }
   }
 
@@ -47,6 +46,18 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(categoriesStreamProvider);
     final catalogAsync = ref.watch(catalogItemsStreamProvider);
+
+    // Resolve the human-readable name for the section header.
+    final selectedName = categoriesAsync.maybeWhen(
+      data: (categories) {
+        if (_selectedId == _kAllId) return 'All products';
+        final match = categories
+            .where((c) => c.id == _selectedId)
+            .toList(growable: false);
+        return match.isEmpty ? _selectedId : match.first.name;
+      },
+      orElse: () => _selectedId == _kAllId ? 'All products' : _selectedId,
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Categories')),
@@ -63,25 +74,22 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                     horizontal: 16,
                     vertical: 10,
                   ),
-                  // +1 for the leading "All Products" chip.
                   itemCount: categories.length + 1,
                   separatorBuilder: (_, __) => const SizedBox(width: 10),
                   itemBuilder: (context, index) {
                     if (index == 0) {
                       return _AllProductsChip(
-                        isSelected: _selected == _kAllCategory,
-                        onTap: () =>
-                            setState(() => _selected = _kAllCategory),
+                        isSelected: _selectedId == _kAllId,
+                        onTap: () => setState(() => _selectedId = _kAllId),
                       );
                     }
                     final category = categories[index - 1];
                     return GestureDetector(
-                      onTap: () => setState(() => _selected = category.name),
+                      onTap: () =>
+                          setState(() => _selectedId = category.id),
                       child: CategoryChip(
                         category: category,
-                        isSelected:
-                            _selected.toLowerCase() ==
-                            category.name.toLowerCase(),
+                        isSelected: _selectedId == category.id,
                       ),
                     );
                   },
@@ -100,7 +108,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: Text(
-                _selected == _kAllCategory ? 'All products' : _selected,
+                selectedName,
                 style: Theme.of(
                   context,
                 ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -111,7 +119,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
           // ── Filtered products grid ────────────────────────────────────
           catalogAsync.when(
             data: (items) {
-              final products = _filterProducts(items, _selected);
+              final products = _filterProducts(items, _selectedId);
 
               if (products.isEmpty) {
                 return SliverFillRemaining(
@@ -129,9 +137,9 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            _selected == _kAllCategory
+                            _selectedId == _kAllId
                                 ? 'No products yet.'
-                                : 'No products in "$_selected" yet.',
+                                : 'No products in "$selectedName" yet.',
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(color: AppColors.slate500),
                             textAlign: TextAlign.center,
@@ -251,15 +259,15 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
     );
   }
 
-  /// Pulls products out of catalog items, filtering by the selected category
-  /// name (case-insensitive). When `_kAllCategory` is selected we return
-  /// every active product unchanged.
-  List<Product> _filterProducts(List<CatalogItem> items, String selected) {
+  /// Match products by their `category` field against the category doc ID.
+  /// Comparison is case-insensitive so a product with `"Cat_Drinks"` still
+  /// resolves to `cat_drinks`.
+  List<Product> _filterProducts(List<CatalogItem> items, String selectedId) {
     final activeOnly = items.where((i) => i.isActive);
-    if (selected == _kAllCategory) {
+    if (selectedId == _kAllId) {
       return activeOnly.map((i) => i.product).toList();
     }
-    final needle = selected.toLowerCase();
+    final needle = selectedId.toLowerCase();
     return activeOnly
         .where((i) => i.category.toLowerCase() == needle)
         .map((i) => i.product)
@@ -302,7 +310,7 @@ class _AllProductsChip extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              _kAllCategory,
+              'All Products',
               style: TextStyle(
                 color: isSelected ? Colors.white : AppColors.slate700,
                 fontWeight: FontWeight.w600,

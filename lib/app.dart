@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'constants/app_constants.dart';
 import 'providers/theme_provider.dart';
-import 'screens/auth_landing_screen.dart';
+import 'screens/auth_gate.dart';
 import 'services/push_notification_service.dart';
 import 'theme/app_theme.dart';
 
@@ -35,7 +35,7 @@ class _MallDashAppState extends ConsumerState<MallDashApp> {
       theme: AppTheme.lightTheme(),
       darkTheme: AppTheme.darkTheme(),
       themeMode: themeMode,
-      home: const AuthLandingScreen(),
+      home: const AuthGate(),
     );
   }
 }
