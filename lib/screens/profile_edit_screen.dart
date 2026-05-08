@@ -1,3 +1,5 @@
+import 'dart:io' show File;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -352,6 +354,8 @@ class _AvatarPreview extends StatelessWidget {
 
     if (pickedImage != null) {
       if (kIsWeb) {
+        // On web, ImagePicker returns a blob URL via `path` but the safe
+        // way to render it is via the bytes.
         child = FutureBuilder<Uint8List>(
           future: pickedImage!.readAsBytes(),
           builder: (_, snap) => snap.hasData
@@ -361,16 +365,18 @@ class _AvatarPreview extends StatelessWidget {
                   width: double.infinity,
                   height: double.infinity,
                 )
-              : const CircularProgressIndicator(),
+              : const Center(child: CircularProgressIndicator()),
         );
       } else {
-        child = Image.network(
-          pickedImage!.path,
+        // On Android/iOS, `path` is a local filesystem path — must use
+        // Image.file, NOT Image.network (which was causing the crash via
+        // its Image.asset fallback in the errorBuilder).
+        child = Image.file(
+          File(pickedImage!.path),
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
-          errorBuilder: (_, __, ___) =>
-              Image.asset(pickedImage!.path, fit: BoxFit.cover),
+          errorBuilder: (_, __, ___) => _initialsWidget,
         );
       }
     } else if (photoUrl.isNotEmpty) {

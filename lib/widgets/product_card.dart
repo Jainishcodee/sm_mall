@@ -26,43 +26,45 @@ class _ProductCardState extends ConsumerState<ProductCard> {
     final quantity = cartState.items[widget.product.id]?.quantity ?? 0;
     final inCart = quantity > 0;
 
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) {
-        setState(() => _isPressed = false);
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ProductDetailScreen(product: widget.product),
-          ),
-        );
-      },
-      onTapCancel: () => setState(() => _isPressed = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: _isPressed
-                ? AppColors.primary
-                : AppColors.primary.withOpacity(0.30),
-            width: _isPressed ? 2.4 : 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(_isPressed ? 0.10 : 0.05),
-              blurRadius: _isPressed ? 10 : 2,
-              offset: Offset(0, _isPressed ? 4 : 1),
-            ),
-          ],
+    // The outer gesture is a Material + InkWell (NOT a GestureDetector),
+    // because the heart button and quantity stepper inside the card are
+    // ALSO InkWell-based. Flutter's gesture arena resolves nested
+    // InkWells correctly — only the innermost onTap fires — but a
+    // GestureDetector competing with a child InkWell is non-deterministic
+    // and on some Android skins (OxygenOS / MIUI) the outer wins,
+    // swallowing the heart tap. Using nested InkWells fixes that.
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 120),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: _isPressed
+              ? AppColors.primary
+              : AppColors.primary.withOpacity(0.30),
+          width: _isPressed ? 2.4 : 1,
         ),
-        // Use Expanded for the image + a non-flex details Column with
-        // mainAxisSize.min. This lets details claim only the height they
-        // need and the image fills the rest, so the card never overflows
-        // even when the grid's aspect ratio gives slightly less height
-        // than `square image + ideal details` would want (was happening
-        // on the Nord 2 with default font scaling).
-        child: Column(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(_isPressed ? 0.10 : 0.05),
+            blurRadius: _isPressed ? 10 : 2,
+            offset: Offset(0, _isPressed ? 4 : 1),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ProductDetailScreen(product: widget.product),
+            ),
+          ),
+          onHighlightChanged: (highlighted) =>
+              setState(() => _isPressed = highlighted),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
@@ -153,6 +155,7 @@ class _ProductCardState extends ConsumerState<ProductCard> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

@@ -109,43 +109,33 @@ class CloudinaryService {
       return body;
     }
 
-    Future<(int, String)> sendUpload({String? effectivePublicId}) async {
-      final request = http.MultipartRequest('POST', uri)
-        ..fields['upload_preset'] = uploadPreset;
+    final request = http.MultipartRequest('POST', uri)
+      ..fields['upload_preset'] = uploadPreset;
 
-      if (folder.isNotEmpty) {
-        request.fields['folder'] = folder;
-      }
-
-      if (effectivePublicId != null && effectivePublicId.isNotEmpty) {
-        request.fields['public_id'] = effectivePublicId;
-      }
-
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          bytes,
-          filename: imageFile.name.isNotEmpty ? imageFile.name : 'upload.jpg',
-        ),
-      );
-
-      final response = await request.send();
-      final body = await response.stream.bytesToString();
-      return (response.statusCode, body);
+    if (folder.isNotEmpty) {
+      request.fields['folder'] = folder;
     }
 
-    var (statusCode, body) = await sendUpload(effectivePublicId: publicId);
+    // NOTE: We deliberately do NOT send `public_id`. Cloudinary unsigned
+    // upload presets disallow custom public IDs by default, which made
+    // every save fail unless the preset was specifically configured.
+    // Letting Cloudinary auto-generate the ID is reliable and the
+    // returned `secure_url` is what we persist anyway. The `publicId`
+    // parameter on this method is kept as a hint for future use but
+    // intentionally ignored. // ignore: unused_local_variable
+    final _ = publicId;
 
-    // Unsigned uploads don't allow overwrite=true. Also, reusing a public_id can
-    // fail if the asset already exists; retry once with a unique public_id.
-    if (statusCode >= 300 &&
-        publicId != null &&
-        publicId.isNotEmpty &&
-        extractDetails(body).toLowerCase().contains('already exists')) {
-      final uniquePublicId = '${publicId}_${DateTime.now().millisecondsSinceEpoch}';
-      (statusCode, body) =
-          await sendUpload(effectivePublicId: uniquePublicId);
-    }
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: imageFile.name.isNotEmpty ? imageFile.name : 'upload.jpg',
+      ),
+    );
+
+    final response = await request.send();
+    final body = await response.stream.bytesToString();
+    final statusCode = response.statusCode;
 
     if (statusCode < 200 || statusCode >= 300) {
       final details = extractDetails(body);

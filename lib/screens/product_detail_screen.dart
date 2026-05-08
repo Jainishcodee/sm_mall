@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/product.dart';
 import '../providers/cart_provider.dart';
+import '../providers/favorites_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
 import '../widgets/quantity_control.dart';
+import 'cart_screen.dart';
 
 class ProductDetailScreen extends ConsumerWidget {
   final Product product;
@@ -17,6 +19,9 @@ class ProductDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cartState = ref.watch(cartProvider);
     final quantity = cartState.items[product.id]?.quantity ?? 0;
+    final favIds =
+        ref.watch(favoriteIdsProvider).valueOrNull ?? const <String>{};
+    final isFav = favIds.contains(product.id);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -59,6 +64,29 @@ class ProductDetailScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: CircleAvatar(
+                      backgroundColor: Colors.white.withValues(alpha: 0.9),
+                      child: IconButton(
+                        icon: Icon(
+                          isFav ? Icons.favorite : Icons.favorite_border,
+                          color: isFav
+                              ? AppColors.primary
+                              : AppColors.slate900,
+                        ),
+                        tooltip: isFav
+                            ? 'Remove from favorites'
+                            : 'Add to favorites',
+                        onPressed: () => toggleFavorite(
+                          product.id,
+                          isCurrentlyFavorite: isFav,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
                 flexibleSpace: FlexibleSpaceBar(
                   background: imageUrl != null
                       ? Image.network(
@@ -185,7 +213,7 @@ class ProductDetailScreen extends ConsumerWidget {
         },
       ),
 
-      // ── Bottom bar: Add to cart / quantity control ──
+      // ── Bottom bar: Add to cart, or quantity stepper + Go to Cart ──
       bottomSheet: Container(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
         decoration: BoxDecoration(
@@ -198,39 +226,23 @@ class ProductDetailScreen extends ConsumerWidget {
             ),
           ],
         ),
-        child: Row(
-          children: [
-            // Price summary
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    formatRupees(product.price),
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.slate900,
-                    ),
-                  ),
-                  if (quantity > 0)
-                    Text(
-                      'Total: ${formatRupees(product.price * quantity)}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.slate500,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: quantity == 0
+              ? Row(
+                  key: const ValueKey('add'),
+                  children: [
+                    Expanded(
+                      child: Text(
+                        formatRupees(product.price),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.slate900,
+                        ),
                       ),
                     ),
-                ],
-              ),
-            ),
-            // Add / quantity buttons
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: quantity == 0
-                  ? SizedBox(
-                      key: const ValueKey('add'),
+                    SizedBox(
                       height: 48,
                       child: ElevatedButton.icon(
                         onPressed: () =>
@@ -249,17 +261,50 @@ class ProductDetailScreen extends ConsumerWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                         ),
                       ),
-                    )
-                  : QuantityControl(
-                      key: const ValueKey('qty'),
+                    ),
+                  ],
+                )
+              : Row(
+                  key: const ValueKey('inCart'),
+                  children: [
+                    QuantityControl(
                       quantity: quantity,
                       onAdd: () =>
                           ref.read(cartProvider.notifier).addItem(product),
-                      onRemove: () =>
-                          ref.read(cartProvider.notifier).decrementItem(product),
+                      onRemove: () => ref
+                          .read(cartProvider.notifier)
+                          .decrementItem(product),
                     ),
-            ),
-          ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const CartScreen(),
+                            ),
+                          ),
+                          icon: const Icon(
+                            Icons.shopping_bag_outlined,
+                            size: 18,
+                          ),
+                          label: Text(
+                            'Go to Cart · ${formatRupees(product.price * quantity)}',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );

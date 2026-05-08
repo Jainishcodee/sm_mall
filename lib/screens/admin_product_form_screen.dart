@@ -83,8 +83,15 @@ class _AdminProductFormScreenState
   }
 
   Future<void> _pickImage() async {
+    // Constrain dimensions and quality so we don't load a 12MP photo into
+    // RAM — readAsBytes + MultipartFile.fromBytes were OOM-ing on lower-RAM
+    // devices when uploading the original.
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      imageQuality: 80,
+    );
     if (pickedFile != null) {
       setState(() {
         selectedImage = pickedFile;
