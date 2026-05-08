@@ -33,32 +33,58 @@ class PushNotificationService {
       if (user == null) {
         return;
       }
-      await _requestPermissions();
-      final phoneKey = currentUserPhoneKey();
-      if (phoneKey != null) {
-        await _syncTokenForUser(phoneKey);
+      try {
+        await _requestPermissions();
+        final phoneKey = currentUserPhoneKey();
+        if (phoneKey != null) {
+          await _syncTokenForUser(phoneKey);
+        }
+      } catch (e) {
+        debugPrint('[push] auth-state token sync failed: $e');
       }
     });
 
     _messaging.onTokenRefresh.listen((token) async {
-      final phoneKey = currentUserPhoneKey();
-      if (phoneKey == null) {
-        return;
+      try {
+        final phoneKey = currentUserPhoneKey();
+        if (phoneKey == null) {
+          return;
+        }
+        await _saveToken(phoneKey, token);
+      } catch (e) {
+        debugPrint('[push] token-refresh save failed: $e');
       }
-      await _saveToken(phoneKey, token);
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpened);
 
-    final initialMessage = await _messaging.getInitialMessage();
-    if (initialMessage != null) {
-      _handleMessageOpened(initialMessage);
-    }
+    // Don't block init on platform channel calls or Firestore writes —
+    // they can hang on cold start (e.g. stale auth token, slow GMS).
+    // ignore: discarded_futures
+    _handleInitialMessageSafe();
+    // ignore: discarded_futures
+    _bootstrapTokenForCurrentUser();
+  }
 
-    final phoneKey = currentUserPhoneKey();
-    if (phoneKey != null) {
+  Future<void> _handleInitialMessageSafe() async {
+    try {
+      final initialMessage = await _messaging.getInitialMessage();
+      if (initialMessage != null) {
+        _handleMessageOpened(initialMessage);
+      }
+    } catch (e) {
+      debugPrint('[push] getInitialMessage failed: $e');
+    }
+  }
+
+  Future<void> _bootstrapTokenForCurrentUser() async {
+    try {
+      final phoneKey = currentUserPhoneKey();
+      if (phoneKey == null) return;
       await _requestPermissions();
       await _syncTokenForUser(phoneKey);
+    } catch (e) {
+      debugPrint('[push] bootstrap token sync failed: $e');
     }
   }
 
@@ -119,10 +145,18 @@ class PushNotificationService {
   }
 
   Future<void> _saveToken(String phoneKey, String token) async {
-    await FirebaseFirestore.instance.collection('users').doc(phoneKey).set({
-      'fcmToken': token,
-      'fcmTokens': FieldValue.arrayUnion([token]),
-      'fcmUpdatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(phoneKey).set({
+        'fcmToken': token,
+        'fcmTokens': FieldValue.arrayUnion([token]),
+        'fcmUpdatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      // Most common cause: stale auth token on cold start, or rules denying
+      // a write before getIdToken(true) refreshes the `name` claim.
+      // The token-refresh listener will retry on next FCM token rotation,
+      // and the OTP flow refreshes the ID token explicitly on login.
+      debugPrint('[push] Firestore token write denied: $e');
+    }
   }
 }

@@ -113,13 +113,17 @@ class StoreScreen extends ConsumerWidget {
                   builder: (context, constraints) {
                     final width = constraints.maxWidth;
                     final crossAxisCount = width >= 900
+                        ? 5
+                        : width >= 700
                         ? 4
-                        : width >= 650
-                        ? 3
                         : width >= 360
-                        ? 2
-                        : 1;
-                    final childAspectRatio = width < 360 ? 0.56 : 0.72;
+                        ? 3
+                        : 2;
+                    final childAspectRatio = crossAxisCount >= 4
+                        ? 0.65
+                        : crossAxisCount == 3
+                        ? 0.56
+                        : 0.55;
 
                     return GridView.builder(
                       padding: const EdgeInsets.only(bottom: 120),

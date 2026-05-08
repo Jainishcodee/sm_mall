@@ -182,14 +182,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 return SliverLayoutBuilder(
                   builder: (context, constraints) {
                     final width = constraints.crossAxisExtent;
+                    // Phone (<360): 2 cols. Most phones (≥360): 3 cols.
+                    // Tablets get 4–5. Aspect ratio scales so the card
+                    // internals don't overflow at the smaller widths
+                    // produced by 3 cols on a typical phone.
                     final crossAxisCount = width >= 900
                         ? 5
                         : width >= 700
                         ? 4
-                        : width >= 500
+                        : width >= 360
                         ? 3
                         : 2;
-                    final childAspectRatio = width < 360 ? 0.56 : 0.62;
+                    final childAspectRatio = crossAxisCount >= 4
+                        ? 0.65
+                        : crossAxisCount == 3
+                        ? 0.56
+                        : 0.55;
 
                     return SliverPadding(
                       padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset),

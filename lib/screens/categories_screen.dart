@@ -62,14 +62,19 @@ class CategoriesScreen extends ConsumerWidget {
             data: (products) => SliverLayoutBuilder(
               builder: (context, constraints) {
                 final width = constraints.crossAxisExtent;
+                // Match HomeScreen — phones get 3 cols, tablets 4–5.
                 final crossAxisCount = width >= 900
                     ? 5
                     : width >= 700
                     ? 4
-                    : width >= 500
+                    : width >= 360
                     ? 3
                     : 2;
-                final childAspectRatio = width < 360 ? 0.56 : 0.62;
+                final childAspectRatio = crossAxisCount >= 4
+                    ? 0.65
+                    : crossAxisCount == 3
+                    ? 0.56
+                    : 0.55;
 
                 return SliverPadding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),

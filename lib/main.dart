@@ -12,7 +12,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await PushNotificationService.instance.initialize();
   GoogleFonts.config.allowRuntimeFetching = true;
   runApp(const ProviderScope(child: MallDashApp()));
+
+  // Fire-and-forget — push notifications are non-critical; never let them
+  // delay the first frame or crash startup.
+  // ignore: discarded_futures
+  PushNotificationService.instance.initialize();
 }

@@ -1,8 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 
-import '../constants/app_constants.dart';
 import '../theme/app_colors.dart';
+import 'home_screen.dart';
 import 'order_tracking_screen.dart';
 
 class OrderSuccessScreen extends StatefulWidget {
@@ -225,8 +225,15 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
                           height: 54,
                           child: OutlinedButton(
                             onPressed: () {
-                              Navigator.of(context)
-                                  .popUntil((route) => route.isFirst);
+                              // Replace the entire stack with HomeScreen so
+                              // the user lands on the storefront, not on the
+                              // AuthLandingScreen that sits underneath.
+                              Navigator.of(context).pushAndRemoveUntil(
+                                MaterialPageRoute(
+                                  builder: (_) => const HomeScreen(),
+                                ),
+                                (_) => false,
+                              );
                             },
                             style: OutlinedButton.styleFrom(
                               side: BorderSide(
@@ -237,9 +244,9 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen>
                                 borderRadius: BorderRadius.circular(16),
                               ),
                             ),
-                            child: Text(
-                              'Back to ${AppConstants.appName}',
-                              style: const TextStyle(
+                            child: const Text(
+                              'Back to Home',
+                              style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.slate700,
