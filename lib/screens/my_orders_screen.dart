@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../models/order.dart' as app_model;
+import '../services/auth_session.dart';
 import 'order_tracking_screen.dart';
 import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
@@ -12,16 +12,16 @@ class MyOrdersScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final phoneKey = currentUserPhoneKey() ?? '';
 
     return Scaffold(
       appBar: AppBar(title: const Text('My Orders')),
-      body: uid.isEmpty
+      body: phoneKey.isEmpty
           ? const Center(child: Text('Not logged in.'))
           : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: FirebaseFirestore.instance
                   .collection('orders')
-                  .where('userId', isEqualTo: uid)
+                  .where('userId', isEqualTo: phoneKey)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {

@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../providers/cart_provider.dart';
 import '../providers/location_provider.dart';
 import '../providers/user_prefs_provider.dart';
+import '../services/auth_session.dart';
 import '../services/firestore_service.dart';
 import '../services/firestore_service_extensions.dart';
 import '../theme/app_colors.dart';
@@ -106,7 +109,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 }
 
                 final user = FirebaseAuth.instance.currentUser;
-                if (user == null) {
+                final phoneKey = currentUserPhoneKey();
+                if (user == null || phoneKey == null || phoneKey.isEmpty) {
                   if (!context.mounted) {
                     return;
                   }
@@ -146,11 +150,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 final total = subtotal + deliveryFee;
 
                 try {
+                  // displayName now carries the phoneKey, so pull a real name
+                  // from the user profile instead.
+                  String? profileName;
+                  try {
+                    final doc = await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(phoneKey)
+                        .get();
+                    profileName = (doc.data()?['name'] as String?)?.trim();
+                  } catch (_) {}
                   final customerName =
-                      user.displayName?.trim().isNotEmpty == true
-                      ? user.displayName!.trim()
+                      (profileName != null && profileName.isNotEmpty)
+                      ? profileName
                       : (user.email?.trim().isNotEmpty == true
-                            ? user.email!
+                            ? user.email!.trim()
                             : 'Customer');
 
                   // Atomic transaction: creates order + payment together.
@@ -158,7 +172,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   final orderId = await ref
                       .read(firestoreServiceProvider)
                       .placeOrderWithPayment(
-                        userId: user.uid,
+                        userId: phoneKey,
                         customerName: customerName,
                         items: itemsPayload,
                         subtotal: subtotal,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../constants/app_constants.dart';
 import '../models/user_profile.dart';
+import '../services/auth_session.dart';
 import '../theme/app_colors.dart';
 import '../widgets/primary_button.dart';
 import 'auth_landing_screen.dart';
@@ -31,22 +32,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final phoneKey = currentUserPhoneKey() ?? '';
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           key: ValueKey(_refreshKey),
-          future: uid.isEmpty
+          future: phoneKey.isEmpty
               ? null
-              : FirebaseFirestore.instance.collection('users').doc(uid).get(),
+              : FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(phoneKey)
+                    .get(),
           builder: (context, snapshot) {
             UserProfile? profile;
             if (snapshot.hasData && snapshot.data?.data() != null) {
-              profile = UserProfile.fromFirestore(uid, snapshot.data!.data()!);
+              profile = UserProfile.fromFirestore(
+                phoneKey,
+                snapshot.data!.data()!,
+              );
             }
-            return _ProfileBody(profile: profile, uid: uid, onEdited: _refresh);
+            return _ProfileBody(
+              profile: profile,
+              phoneKey: phoneKey,
+              onEdited: _refresh,
+            );
           },
         ),
       ),
@@ -106,12 +117,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
 class _ProfileBody extends StatelessWidget {
   final UserProfile? profile;
-  final String uid;
+  final String phoneKey;
   final VoidCallback onEdited;
 
   const _ProfileBody({
     required this.profile,
-    required this.uid,
+    required this.phoneKey,
     required this.onEdited,
   });
 
@@ -369,7 +380,7 @@ class _ProfileBody extends StatelessWidget {
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => ProfileEditScreen(
-          uid: uid,
+          phoneKey: phoneKey,
           initialFirstName: profile?.firstName ?? '',
           initialLastName: profile?.lastName ?? '',
           initialEmail: profile?.email ?? '',

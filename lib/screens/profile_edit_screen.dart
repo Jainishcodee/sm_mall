@@ -11,7 +11,7 @@ import '../theme/app_colors.dart';
 const _kGenders = ['Male', 'Female', 'Other', 'Prefer not to say'];
 
 class ProfileEditScreen extends ConsumerStatefulWidget {
-  final String uid;
+  final String phoneKey;
   final String initialFirstName;
   final String initialLastName;
   final String initialEmail;
@@ -20,7 +20,7 @@ class ProfileEditScreen extends ConsumerStatefulWidget {
 
   const ProfileEditScreen({
     super.key,
-    required this.uid,
+    required this.phoneKey,
     this.initialFirstName = '',
     this.initialLastName = '',
     this.initialEmail = '',
@@ -88,7 +88,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
         final svc = ref.read(cloudinaryServiceProvider);
         final uploaded = await svc.uploadProductImage(
           imageFile: _pickedImage!,
-          publicId: 'users/${widget.uid}/avatar',
+          publicId: 'users/${widget.phoneKey}/avatar',
         );
         if (uploaded != null) photoUrl = uploaded;
       }
@@ -105,7 +105,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
 
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(widget.uid)
+          .doc(widget.phoneKey)
           .set(updates, SetOptions(merge: true));
 
       if (!mounted) return;

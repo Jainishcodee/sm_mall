@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../app.dart';
 import '../screens/order_tracking_screen.dart';
+import 'auth_session.dart';
 
 /// Background handler required by Firebase Messaging.
 @pragma('vm:entry-point')
@@ -33,15 +34,18 @@ class PushNotificationService {
         return;
       }
       await _requestPermissions();
-      await _syncTokenForUser(user.uid);
+      final phoneKey = currentUserPhoneKey();
+      if (phoneKey != null) {
+        await _syncTokenForUser(phoneKey);
+      }
     });
 
     _messaging.onTokenRefresh.listen((token) async {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) {
+      final phoneKey = currentUserPhoneKey();
+      if (phoneKey == null) {
         return;
       }
-      await _saveToken(uid, token);
+      await _saveToken(phoneKey, token);
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpened);
@@ -51,10 +55,10 @@ class PushNotificationService {
       _handleMessageOpened(initialMessage);
     }
 
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
+    final phoneKey = currentUserPhoneKey();
+    if (phoneKey != null) {
       await _requestPermissions();
-      await _syncTokenForUser(uid);
+      await _syncTokenForUser(phoneKey);
     }
   }
 
@@ -106,16 +110,16 @@ class PushNotificationService {
     );
   }
 
-  Future<void> _syncTokenForUser(String uid) async {
+  Future<void> _syncTokenForUser(String phoneKey) async {
     final token = await _messaging.getToken();
     if (token == null || token.isEmpty) {
       return;
     }
-    await _saveToken(uid, token);
+    await _saveToken(phoneKey, token);
   }
 
-  Future<void> _saveToken(String uid, String token) async {
-    await FirebaseFirestore.instance.collection('users').doc(uid).set({
+  Future<void> _saveToken(String phoneKey, String token) async {
+    await FirebaseFirestore.instance.collection('users').doc(phoneKey).set({
       'fcmToken': token,
       'fcmTokens': FieldValue.arrayUnion([token]),
       'fcmUpdatedAt': FieldValue.serverTimestamp(),

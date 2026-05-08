@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../services/auth_session.dart';
 
 // ---------------------------------------------------------------------------
 // Model
@@ -53,10 +54,10 @@ class UserPrefsNotifier extends AsyncNotifier<UserPrefs> {
 
   @override
   Future<UserPrefs> build() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return const UserPrefs();
+    final phoneKey = currentUserPhoneKey();
+    if (phoneKey == null) return const UserPrefs();
 
-    _docRef = FirebaseFirestore.instance.collection('users').doc(uid);
+    _docRef = FirebaseFirestore.instance.collection('users').doc(phoneKey);
 
     final snap = await _docRef!.get();
     final data = snap.data();
@@ -86,9 +87,9 @@ class UserPrefsNotifier extends AsyncNotifier<UserPrefs> {
   }
 
   Future<void> _persist(Map<String, dynamic> fields) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    _docRef ??= FirebaseFirestore.instance.collection('users').doc(uid);
+    final phoneKey = currentUserPhoneKey();
+    if (phoneKey == null) return;
+    _docRef ??= FirebaseFirestore.instance.collection('users').doc(phoneKey);
     await _docRef!.set({
       ...fields,
       'updatedAt': FieldValue.serverTimestamp(),

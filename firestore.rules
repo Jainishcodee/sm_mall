@@ -3,113 +3,113 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // ─── Helper functions ───
 
-    // Admin check: reads the caller's user document for isAdmin flag.
-    // Falls back to false when the document doesn't exist yet.
-    function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
-
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    function isUserOwner(userId) {
-      return request.auth.uid == userId;
+    // Phone-derived identity. The OTP flow writes the phone key
+    // (digits-only E.164, e.g. "919876543210") to FirebaseAuth.User.displayName,
+    // which Firebase exposes here as `request.auth.token.name`.
+    function currentPhoneKey() {
+      return request.auth.token.name;
+    }
+
+    function isUserOwner(phoneKey) {
+      return isAuthenticated() && currentPhoneKey() == phoneKey;
+    }
+
+    // Admin check: reads /users/{currentPhoneKey()}.isAdmin.
+    function isAdmin() {
+      return isAuthenticated() &&
+             currentPhoneKey() != null &&
+             get(/databases/$(database)/documents/users/$(currentPhoneKey())).data.isAdmin == true;
     }
 
     // ─── Categories ───
     match /categories/{categoryId} {
       allow read: if isAuthenticated();
-      allow create, update, delete: if isAuthenticated() && isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
     // ─── Products ───
     match /products/{productId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isAdmin() &&
+      allow create: if isAdmin() &&
                        request.resource.data.name is string &&
                        request.resource.data.category is string &&
                        request.resource.data.price is number &&
                        request.resource.data.unit is string &&
                        request.resource.data.storeId is string;
-      allow update: if isAuthenticated() && isAdmin() &&
+      allow update: if isAdmin() &&
                        request.resource.data.name is string &&
                        request.resource.data.category is string &&
                        request.resource.data.price is number &&
                        request.resource.data.unit is string;
-      allow delete: if isAuthenticated() && isAdmin();
+      allow delete: if isAdmin();
     }
 
-    // ─── Users ───
-    match /users/{userId} {
-      allow read: if isUserOwner(userId) || (isAuthenticated() && isAdmin());
-      allow create: if isUserOwner(userId);
-      // Users can update own profile but CANNOT set isAdmin on themselves.
-      allow update: if isUserOwner(userId) &&
+    // ─── Users ─── (keyed by phone, NOT by Firebase Auth uid)
+    match /users/{phoneKey} {
+      allow read: if isUserOwner(phoneKey) || isAdmin();
+      allow create: if isUserOwner(phoneKey);
+      // Owner can edit their own profile, but cannot self-promote to admin.
+      allow update: if isUserOwner(phoneKey) &&
                        (!('isAdmin' in request.resource.data) ||
                         request.resource.data.isAdmin == resource.data.isAdmin);
-      allow delete: if isAuthenticated() && isAdmin();
+      allow delete: if isAdmin();
 
       // User Addresses Subcollection
       match /addresses/{addressId} {
-        allow read: if isUserOwner(userId) || (isAuthenticated() && isAdmin());
-        allow create: if isUserOwner(userId) &&
+        allow read: if isUserOwner(phoneKey) || isAdmin();
+        allow create: if isUserOwner(phoneKey) &&
                          request.resource.data.address is string &&
                          request.resource.data.label is string;
-        allow update: if isUserOwner(userId);
-        allow delete: if isUserOwner(userId) || (isAuthenticated() && isAdmin());
+        allow update: if isUserOwner(phoneKey);
+        allow delete: if isUserOwner(phoneKey) || isAdmin();
       }
     }
 
-    // ─── Orders ───
+    // ─── Orders ─── (userId field stores the phone key)
     match /orders/{orderId} {
-      // Read: own orders or admin
       allow read: if isAuthenticated() &&
-                     (isAdmin() || resource.data.userId == request.auth.uid);
+                     (isAdmin() || resource.data.userId == currentPhoneKey());
 
-      // Create: authenticated user, userId must match caller
       allow create: if isAuthenticated() &&
-                       request.resource.data.userId == request.auth.uid &&
+                       request.resource.data.userId == currentPhoneKey() &&
                        request.resource.data.total is number &&
                        request.resource.data.status is string &&
                        request.resource.data.items is list;
 
-      // Update: ONLY admin can update orders (status, delivery, payment).
-      // Customers cannot modify their orders after creation.
-      allow update: if isAuthenticated() && isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
 
-      allow delete: if isAuthenticated() && isAdmin();
-
-      // Order Items Subcollection
       match /items/{itemId} {
         allow read: if isAuthenticated() &&
                        (isAdmin() ||
-                        get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid);
-        allow write: if isAuthenticated() && isAdmin();
+                        get(/databases/$(database)/documents/orders/$(orderId)).data.userId == currentPhoneKey());
+        allow write: if isAdmin();
       }
     }
 
-    // ─── Payments ───
+    // ─── Payments ─── (userId field stores the phone key)
     match /payments/{paymentId} {
       allow read: if isAuthenticated() &&
-                     (isAdmin() || resource.data.userId == request.auth.uid);
+                     (isAdmin() || resource.data.userId == currentPhoneKey());
 
-      // Create: authenticated user creating their own payment record
       allow create: if isAuthenticated() &&
-                       request.resource.data.userId == request.auth.uid &&
+                       request.resource.data.userId == currentPhoneKey() &&
                        request.resource.data.amount is number &&
                        request.resource.data.orderId is string &&
                        request.resource.data.status is string;
 
-      // Update/delete: admin only
-      allow update: if isAuthenticated() && isAdmin();
-      allow delete: if isAuthenticated() && isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     // ─── App Settings ───
     match /app_settings/{doc} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && isAdmin();
+      allow write: if isAdmin();
     }
 
     // Default deny
