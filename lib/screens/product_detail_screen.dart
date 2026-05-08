@@ -34,8 +34,12 @@ class ProductDetailScreen extends ConsumerWidget {
           final imageUrl = (data?['imageUrl'] as String?) ?? product.imageUrl;
           final description = (data?['description'] as String?) ?? '';
           final category = (data?['category'] as String?) ?? '';
+          // `stockNote` is the source of truth for inventory — usually a
+          // numeric string like "15" but legacy docs may have plain text
+          // ("In Stock"). Parse to int when possible, fall back to showing
+          // the raw label.
           final stockNote = (data?['stockNote'] as String?) ?? '';
-          final isActive = data?['isActive'] ?? true;
+          final unitsLeft = int.tryParse(stockNote.trim());
 
           return CustomScrollView(
             slivers: [
@@ -107,16 +111,6 @@ class ProductDetailScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 6),
 
-                      // Unit
-                      Text(
-                        unit,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.slate500,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
                       // Price
                       Text(
                         formatRupees(price),
@@ -128,51 +122,39 @@ class ProductDetailScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 20),
 
-                      // Stock status
-                      if (stockNote.isNotEmpty || !isActive) ...[
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? AppColors.success.withValues(alpha: 0.06)
-                                : AppColors.primary.withValues(alpha: 0.06),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isActive
-                                  ? AppColors.success.withValues(alpha: 0.15)
-                                  : AppColors.primary.withValues(alpha: 0.15),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                isActive
-                                    ? Icons.check_circle_outline
-                                    : Icons.error_outline,
-                                size: 18,
-                                color: isActive
-                                    ? AppColors.success
-                                    : AppColors.primary,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                isActive
-                                    ? (stockNote.isNotEmpty ? stockNote : 'In Stock')
-                                    : 'Currently Unavailable',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: isActive
-                                      ? AppColors.success
-                                      : AppColors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
+                      // Units panel — header, unit string, and units left.
+                      const Text(
+                        'Units',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.slate900,
                         ),
-                        const SizedBox(height: 20),
-                      ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        unit,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.slate700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        unitsLeft == null
+                            ? (stockNote.isEmpty ? 'Stock not set' : stockNote)
+                            : (unitsLeft > 0
+                                ? '$unitsLeft units left'
+                                : 'Out of stock'),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: (unitsLeft != null && unitsLeft <= 0)
+                              ? AppColors.primary
+                              : AppColors.slate500,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
 
                       // Description
                       if (description.isNotEmpty) ...[

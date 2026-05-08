@@ -40,11 +40,28 @@ service cloud.firestore {
                        request.resource.data.price is number &&
                        request.resource.data.unit is string &&
                        request.resource.data.storeId is string;
-      allow update: if isAdmin() &&
-                       request.resource.data.name is string &&
-                       request.resource.data.category is string &&
-                       request.resource.data.price is number &&
-                       request.resource.data.unit is string;
+
+      // Two paths to update a product:
+      //   1. Admin: full edit (name/price/etc.)
+      //   2. Authenticated customer: ONLY rewrite `stockNote` (and bump
+      //      `updatedAt`) — used by the order-placement transaction to
+      //      decrement inventory. We can't enforce "must be smaller" here
+      //      because stockNote is a string; the client logic is trusted to
+      //      only emit lower values. Customers still cannot touch any other
+      //      product field.
+      allow update: if (
+        isAdmin() &&
+        request.resource.data.name is string &&
+        request.resource.data.category is string &&
+        request.resource.data.price is number &&
+        request.resource.data.unit is string
+      ) || (
+        isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['stockNote', 'updatedAt']) &&
+        request.resource.data.stockNote is string
+      );
+
       allow delete: if isAdmin();
     }
 

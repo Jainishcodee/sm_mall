@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/product.dart';
 import '../providers/cart_provider.dart';
+import '../providers/favorites_provider.dart';
 import '../screens/product_detail_screen.dart';
 import '../theme/app_colors.dart';
 import '../utils/formatters.dart';
@@ -103,6 +104,12 @@ class _ProductCardState extends ConsumerState<ProductCard> {
                                 .read(cartProvider.notifier)
                                 .addItem(widget.product),
                           ),
+                  ),
+                  // Heart / favorite button — top-left, circular.
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: _FavoriteButton(productId: widget.product.id),
                   ),
                 ],
               ),
@@ -269,33 +276,47 @@ class _UnitPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.primary.withOpacity(0.30)),
-        borderRadius: BorderRadius.circular(4),
+    return Text(
+      unit,
+      style: const TextStyle(
+        fontSize: 11,
+        color: AppColors.slate500,
+        fontWeight: FontWeight.w500,
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Flexible(
-            child: Text(
-              unit,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.slate700,
-                fontWeight: FontWeight.w500,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+class _FavoriteButton extends ConsumerWidget {
+  final String productId;
+
+  const _FavoriteButton({required this.productId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final favIds =
+        ref.watch(favoriteIdsProvider).valueOrNull ?? const <String>{};
+    final isFav = favIds.contains(productId);
+
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      elevation: 1,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: () =>
+            toggleFavorite(productId, isCurrentlyFavorite: isFav),
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: Icon(
+            isFav ? Icons.favorite : Icons.favorite_border,
+            size: 16,
+            color: isFav ? AppColors.primary : AppColors.slate500,
           ),
-          const Icon(
-            Icons.keyboard_arrow_down,
-            size: 14,
-            color: AppColors.slate400,
-          ),
-        ],
+        ),
       ),
     );
   }

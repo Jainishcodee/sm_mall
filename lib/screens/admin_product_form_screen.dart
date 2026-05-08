@@ -248,7 +248,7 @@ class _AdminProductFormScreenState
           _LabeledField(
             label: 'Stock note',
             controller: stockController,
-            hintText: '28 in stock',
+            hintText: 'Number of units (e.g. 15) or text label',
           ),
           const SizedBox(height: 16),
           _SectionHeader(

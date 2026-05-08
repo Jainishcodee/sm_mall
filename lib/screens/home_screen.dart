@@ -123,9 +123,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     itemCount: categories.length,
                     separatorBuilder: (_, __) => const SizedBox(width: 10),
                     itemBuilder: (context, index) {
+                      final category = categories[index];
                       return SizedBox(
                         width: 68,
-                        child: CategoryGridTile(category: categories[index]),
+                        child: CategoryGridTile(
+                          category: category,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => CategoriesScreen(
+                                  initialCategory: category.name,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       );
                     },
                   ),

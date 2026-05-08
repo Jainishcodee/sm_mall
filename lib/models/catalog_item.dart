@@ -15,6 +15,11 @@ class CatalogItem {
     required this.description,
   });
 
+  /// Numeric inventory parsed out of `stockNote` when possible. Returns null
+  /// for legacy text values like "In Stock", so callers can fall back to
+  /// showing the raw label instead of `0`.
+  int? get unitsLeft => int.tryParse(stockNote.trim());
+
   CatalogItem copyWith({
     Product? product,
     String? category,

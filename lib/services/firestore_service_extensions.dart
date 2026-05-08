@@ -54,9 +54,15 @@ extension FirestoreServiceOrdersAndPayments on FirestoreService {
     return doc.id;
   }
 
-  /// Atomically creates an order and its payment record in a single transaction.
-  /// Returns the order document ID. If either write fails the whole operation
-  /// is rolled back — no orphaned orders or payments.
+  /// Atomically creates an order and its payment record in a single
+  /// transaction, and decrements the inventory recorded in each ordered
+  /// product's `stockNote` field. `stockNote` is a string ("15" / "In Stock"
+  /// etc.); we only adjust it when it parses as a non-negative integer, so
+  /// legacy text labels are left untouched. The user has accepted that
+  /// race conditions aren't a concern here, but the transaction guarantees
+  /// no half-applied state if any write fails.
+  ///
+  /// Returns the order document ID.
   Future<String> placeOrderWithPayment({
     required String userId,
     required String customerName,
@@ -75,8 +81,29 @@ extension FirestoreServiceOrdersAndPayments on FirestoreService {
     // Pre-generate document refs so both docs can reference each other.
     final orderRef = ordersCollection.doc();
     final paymentRef = paymentsCollection.doc();
+    final productsRef = firestore.collection('products');
+
+    // Coalesce duplicate productIds into a single decrement amount.
+    final perProduct = <String, int>{};
+    for (final item in items) {
+      final productId = (item['productId'] ?? '').toString();
+      final qty = (item['quantity'] is num)
+          ? (item['quantity'] as num).toInt()
+          : 0;
+      if (productId.isEmpty || qty <= 0) continue;
+      perProduct.update(productId, (existing) => existing + qty,
+          ifAbsent: () => qty);
+    }
 
     await firestore.runTransaction((transaction) async {
+      // Firestore transactions require ALL reads before any writes, so we
+      // pull each product first.
+      final productSnaps = <String, DocumentSnapshot<Map<String, dynamic>>>{};
+      for (final productId in perProduct.keys) {
+        productSnaps[productId] =
+            await transaction.get(productsRef.doc(productId));
+      }
+
       // ── Create order ──
       transaction.set(orderRef, {
         'userId': userId,
@@ -108,6 +135,23 @@ extension FirestoreServiceOrdersAndPayments on FirestoreService {
         'transactionId': 'TXN-${orderRef.id}',
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // ── Decrement stockNote per ordered product ──
+      for (final entry in perProduct.entries) {
+        final snap = productSnaps[entry.key];
+        if (snap == null || !snap.exists) continue;
+        final currentNote = (snap.data()?['stockNote'] ?? '').toString().trim();
+        final currentInt = int.tryParse(currentNote);
+        if (currentInt == null) {
+          // Non-numeric label like "In Stock" — don't overwrite it.
+          continue;
+        }
+        final next = (currentInt - entry.value).clamp(0, 1 << 31);
+        transaction.update(productsRef.doc(entry.key), {
+          'stockNote': next.toString(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
     });
 
     return orderRef.id;
